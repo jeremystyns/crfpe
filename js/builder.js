@@ -1,5 +1,5 @@
 /* ============================================================================
-   ATELIER APPLI — le constructeur.
+   ATELIER APPLI : le constructeur (charte graphique CRFPE).
    100 % local : aucune requête réseau, aucune bibliothèque externe.
    Sauvegarde automatique dans le navigateur (IndexedDB) + export .json / .html.
    ============================================================================ */
@@ -7,6 +7,8 @@
   'use strict';
 
   const H = window.MonAppRuntime(null, null, { helpersOnly: true });
+  const ICONS = window.CRFPE_ICONS || {};
+  const SVGNS = 'http://www.w3.org/2000/svg';
 
   /* ------------------------------------------------------------------ utilitaires */
   const $ = (s, r) => (r || document).querySelector(s);
@@ -14,6 +16,22 @@
   const str = (v) => (v == null ? '' : String(v));
   const clone = (o) => JSON.parse(JSON.stringify(o));
 
+  /* Pictogramme du jeu CRFPE, dessiné nœud par nœud */
+  function icon(name, size, cls) {
+    const def = ICONS[name];
+    const s = document.createElementNS(SVGNS, 'svg');
+    s.setAttribute('class', 'ic' + (cls ? ' ' + cls : ''));
+    s.setAttribute('width', String(size || 18)); s.setAttribute('height', String(size || 18));
+    s.setAttribute('aria-hidden', 'true'); s.setAttribute('focusable', 'false');
+    if (!def) return s;
+    s.setAttribute('viewBox', '0 0 ' + def.v + ' ' + def.v);
+    def.p.forEach((p) => {
+      const g = document.createElementNS(SVGNS, 'g'); g.setAttribute('transform', p[0]);
+      const path = document.createElementNS(SVGNS, 'path'); path.setAttribute('d', p[1]);
+      g.appendChild(path); s.appendChild(g);
+    });
+    return s;
+  }
   function el(tag, props, kids) {
     const n = document.createElement(tag);
     if (props) {
@@ -33,6 +51,7 @@
     });
     return n;
   }
+  const btn = (label, ic, props) => el('button', Object.assign({ type: 'button', class: 'btn' }, props), [ic ? icon(ic, 16) : null, label]);
   function debounce(fn, ms) { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; }
   function slug(s) {
     return str(s).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'appli';
@@ -80,38 +99,43 @@
   };
   const mem = (k, v) => { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (e) { return null; } };
 
-  /* ------------------------------------------------------------------ préréglages de thème */
-  const PRESETS = [
-    { key: 'ocean', name: 'Océan', primary: '#2563eb', accent: '#f59e0b', dark: false },
-    { key: 'forest', name: 'Forêt', primary: '#15803d', accent: '#f97316', dark: false },
-    { key: 'plum', name: 'Prune', primary: '#7e22ce', accent: '#ec4899', dark: false },
-    { key: 'sun', name: 'Soleil', primary: '#ea580c', accent: '#0ea5e9', dark: false },
-    { key: 'slate', name: 'Ardoise', primary: '#334155', accent: '#14b8a6', dark: false },
-    { key: 'night', name: 'Nuit', primary: '#60a5fa', accent: '#fbbf24', dark: true }
+  /* ------------------------------------------------------------------ thèmes : équipes CRFPE */
+  const BLUE = '#004c8e', CYAN = '#41c8f4';
+  const TEAM_LIST = [
+    { key: 'instit', name: 'Institutionnel', dots: ['#58889e', '#b7ddff'] },
+    { key: 'eje', name: 'EJE', dots: ['#6cc067', '#e6efc1'] },
+    { key: 'fc', name: 'Formation Continue', dots: ['#c00000', '#f3a59f'] },
+    { key: 'sesame', name: 'Espace Sésame', dots: ['#dc8319', '#ffe4af'] }
   ];
-  const DEFAULT_THEME = { preset: 'ocean', primary: '#2563eb', accent: '#f59e0b', dark: false, radius: 'doux', font: 'moderne' };
-  const EMOJIS = ['🏠', '📚', '📅', '🗂️', '📞', '📍', '👥', '🎓', '📰', '❓', '📝', '💬', '🎯', '🏆', '🧩', '🍽️', '🚌', '🏥', '💼', '🔧', '💻', '🎨', '🎵', '⚽', '🌍', '🔒', '⭐', '❤️', '1️⃣', '2️⃣', '3️⃣'];
+  const ICON_LABELS = {
+    building: 'Bâtiment', 'graduation-cap': 'Diplôme', calendar: 'Calendrier', folder: 'Dossier', phone: 'Téléphone', 'map-marker': 'Lieu', users: 'Groupe', user: 'Personne',
+    child: 'Enfant', book: 'Livre', comments: 'Discussion', comment: 'Message', envelope: 'Courriel', 'file-text': 'Document', lightbulb: 'Idée', heart: 'Cœur', star: 'Étoile',
+    trophy: 'Trophée', euro: 'Euro', tree: 'Arbre', 'puzzle-piece': 'Puzzle', rocket: 'Fusée', bell: 'Cloche', bullhorn: 'Annonce', briefcase: 'Mallette', university: 'Institution',
+    clock: 'Horloge', 'question-circle': 'Question', 'info-circle': 'Information', flag: 'Drapeau', link: 'Lien', print: 'Imprimante', wheelchair: 'Accessibilité', sitemap: 'Organisation',
+    'bar-chart': 'Statistiques', search: 'Recherche', cog: 'Réglages', 'paper-plane': 'Envoi', download: 'Téléchargement', 'check-circle': 'Validation', file: 'Fichier', paperclip: 'Pièce jointe'
+  };
+  const LEGACY_EMOJI = { '🏠': 'building', '📚': 'graduation-cap', '📅': 'calendar', '🗓️': 'clock', '🗂️': 'folder', '📞': 'phone', '📍': 'map-marker', '👥': 'users', '👋': 'star', '🧩': 'puzzle-piece', '🏁': 'flag', '1️⃣': 'puzzle-piece', '2️⃣': 'puzzle-piece', '🏆': 'trophy', '📄': 'file-text', '🎓': 'graduation-cap' };
 
   /* ------------------------------------------------------------------ catalogue des blocs */
   const OPT = {
-    tone: [['info', 'ℹ️ Information'], ['warn', '⚠️ Attention'], ['ok', '✅ Réussite / bon à savoir'], ['alert', '🚨 Urgent']],
-    yesNoPage: () => [['', '— Aucune page —']].concat(app.pages.map((p) => [p.id, (p.icon ? p.icon + ' ' : '') + p.title]))
+    tone: [['info', 'Information'], ['warn', 'Attention'], ['ok', 'Réussite, bon à savoir'], ['alert', 'Urgent']],
+    pages: () => [['', 'Aucune page']].concat(app.pages.map((p) => [p.id, p.title]))
   };
   const MD_HELP = 'Astuce : **gras**, *italique*, [texte du lien](https://…). Une ligne qui commence par « - » devient une liste.';
 
   const BLOCKS = {
     hero: {
-      label: 'Bandeau d’accueil', icon: '🏷️', group: 'Mise en avant', desc: 'Grand titre avec image de fond ou dégradé.',
+      label: 'Bandeau d’accueil', icon: 'flag', group: 'Mise en avant', desc: 'Grand titre sur aplat de couleur, avec image facultative.',
       make: () => ({ title: 'Titre du bandeau', text: '', image: '' }),
       summary: (b) => b.title,
       fields: [
-        { k: 'title', l: 'Titre', t: 'text', ph: 'Ex : Bienvenue au centre Horizon' },
+        { k: 'title', l: 'Titre', t: 'text', ph: 'Ex : Bienvenue au CRFPE' },
         { k: 'text', l: 'Sous-titre (facultatif)', t: 'text', ph: 'Ex : Rentrée le lundi 2 septembre' },
-        { k: 'image', l: 'Image de fond (facultatif)', t: 'image', max: 1600, help: 'Sans image, le bandeau prend les couleurs de l’appli.' }
+        { k: 'image', l: 'Image (facultatif)', t: 'image', max: 1600, help: 'Sans image, le bandeau est un aplat aux couleurs de l’appli.' }
       ]
     },
     title: {
-      label: 'Titre', icon: '🔤', group: 'Texte et médias', desc: 'Un intertitre pour organiser la page.',
+      label: 'Titre', icon: 'list-ul', group: 'Texte et médias', desc: 'Un intertitre pour organiser la page.',
       make: () => ({ text: 'Nouveau titre', level: 2 }),
       summary: (b) => b.text,
       fields: [
@@ -120,13 +144,13 @@
       ]
     },
     text: {
-      label: 'Texte', icon: '📝', group: 'Texte et médias', desc: 'Paragraphes, listes, liens, gras, italique.',
+      label: 'Texte', icon: 'file-text', group: 'Texte et médias', desc: 'Paragraphes, listes, liens, gras, italique.',
       make: () => ({ text: '' }),
       summary: (b) => b.text.replace(/\s+/g, ' ').slice(0, 60),
       fields: [{ k: 'text', l: 'Texte', t: 'textarea', md: true, rows: 6, help: MD_HELP }]
     },
     image: {
-      label: 'Image', icon: '🖼️', group: 'Texte et médias', desc: 'Une photo ou une illustration, compressée automatiquement.',
+      label: 'Image', icon: 'file', group: 'Texte et médias', desc: 'Une photo, compressée automatiquement.',
       make: () => ({ src: '', alt: '', caption: '', size: 'full' }),
       summary: (b) => b.caption || b.alt || (b.src ? 'Image' : 'Aucune image choisie'),
       fields: [
@@ -137,7 +161,7 @@
       ]
     },
     video: {
-      label: 'Vidéo', icon: '🎬', group: 'Texte et médias', desc: 'YouTube, Vimeo, Dailymotion, PeerTube ou fichier .mp4.',
+      label: 'Vidéo', icon: 'desktop', group: 'Texte et médias', desc: 'YouTube, Vimeo, Dailymotion, PeerTube ou fichier .mp4.',
       make: () => ({ url: '', title: '' }),
       summary: (b) => b.title || b.url || 'Aucune vidéo',
       fields: [
@@ -145,13 +169,13 @@
           if (!b.url.trim()) return { level: 'info', t: 'Collez l’adresse de la page de la vidéo (celle de la barre d’adresse).' };
           const v = H.videoInfo(b.url);
           if (!v) return { level: 'bad', t: 'Adresse non reconnue. Essayez YouTube, Vimeo, Dailymotion, PeerTube ou un fichier .mp4.' };
-          return { level: 'ok', t: v.file ? '✔ Fichier vidéo détecté' : '✔ Vidéo reconnue (' + new URL(v.src).hostname + ')' };
+          return { level: 'ok', t: v.file ? 'Fichier vidéo détecté.' : 'Vidéo reconnue (' + new URL(v.src).hostname + ').' };
         } },
-        { k: 'title', l: 'Titre de la vidéo (accessibilité)', t: 'text', ph: 'Ex : Visite virtuelle de l’atelier' }
+        { k: 'title', l: 'Titre de la vidéo (accessibilité)', t: 'text', ph: 'Ex : Visite virtuelle de la salle de motricité' }
       ]
     },
     callout: {
-      label: 'Encadré', icon: '💡', group: 'Texte et médias', desc: 'Information importante, alerte ou bon à savoir.',
+      label: 'Encadré', icon: 'lightbulb', group: 'Texte et médias', desc: 'Information importante, alerte ou bon à savoir.',
       make: () => ({ tone: 'info', title: '', text: '' }),
       summary: (b) => b.title || b.text.slice(0, 50),
       fields: [
@@ -161,22 +185,22 @@
       ]
     },
     button: {
-      label: 'Bouton', icon: '🔘', group: 'Navigation', desc: 'Ouvre une page de l’appli, un site, un mail ou un appel.',
+      label: 'Bouton', icon: 'arrow-right', group: 'Navigation', desc: 'Ouvre une page de l’appli, un site, un courriel ou un appel.',
       make: () => ({ label: 'Mon bouton', kind: 'page', page: '', url: '', mail: '', tel: '', style: 'solid', width: 'full' }),
       summary: (b) => b.label,
       fields: [
-        { k: 'label', l: 'Texte du bouton', t: 'text', ph: 'Ex : Voir le planning' },
-        { k: 'kind', l: 'Que fait le bouton ?', t: 'select', refresh: true, o: [['page', 'Ouvre une page de l’appli'], ['url', 'Ouvre un site ou un document'], ['mail', 'Écrit un mail'], ['tel', 'Lance un appel']] },
+        { k: 'label', l: 'Texte du bouton', t: 'text', ph: 'Ex : Consulter le planning' },
+        { k: 'kind', l: 'Que fait le bouton ?', t: 'select', refresh: true, o: [['page', 'Ouvre une page de l’appli'], ['url', 'Ouvre un site ou un document'], ['mail', 'Écrit un courriel'], ['tel', 'Lance un appel']] },
         { k: 'page', l: 'Page à ouvrir', t: 'page', show: (b) => b.kind === 'page' },
         { k: 'url', l: 'Adresse', t: 'text', ph: 'https://… ou documents/livret.pdf', show: (b) => b.kind === 'url', help: 'Un chemin relatif (documents/livret.pdf) fonctionne si le fichier est hébergé à côté de l’appli.' },
-        { k: 'mail', l: 'Adresse mail', t: 'text', ph: 'secretariat@exemple.org', show: (b) => b.kind === 'mail' },
-        { k: 'tel', l: 'Numéro de téléphone', t: 'text', ph: '01 23 45 67 89', show: (b) => b.kind === 'tel' },
-        { k: 'style', l: 'Style', t: 'select', o: [['solid', 'Plein'], ['outline', 'Contour']] },
+        { k: 'mail', l: 'Adresse de courriel', t: 'text', ph: 'secretariat@exemple.org', show: (b) => b.kind === 'mail' },
+        { k: 'tel', l: 'Numéro de téléphone', t: 'text', ph: '+33 (0)3 20 14 93 00', show: (b) => b.kind === 'tel' },
+        { k: 'style', l: 'Style', t: 'select', o: [['solid', 'Plein (couleur principale)'], ['outline', 'Contour'], ['accent', 'Accent (cyan de la charte)']] },
         { k: 'width', l: 'Largeur', t: 'select', o: [['full', 'Pleine largeur'], ['auto', 'Ajustée au texte']] }
       ]
     },
     links: {
-      label: 'Liens et documents', icon: '📎', group: 'Navigation', desc: 'Liste de liens : PDF, plateforme, sites, pages.',
+      label: 'Liens et documents', icon: 'paperclip', group: 'Navigation', desc: 'Liste de liens : PDF, plateforme, sites, pages.',
       make: () => ({ items: [{ label: 'Mon document', desc: '', url: '', page: '' }] }),
       summary: (b) => b.items.length + ' lien' + (b.items.length > 1 ? 's' : ''),
       fields: [{
@@ -184,30 +208,30 @@
         make: () => ({ label: 'Nouveau lien', desc: '', url: '', page: '' }),
         fields: [
           { k: 'label', l: 'Intitulé', t: 'text', ph: 'Ex : Règlement intérieur' },
-          { k: 'desc', l: 'Précision (facultatif)', t: 'text', ph: 'Ex : PDF · 2 pages' },
+          { k: 'desc', l: 'Précision (facultatif)', t: 'text', ph: 'Ex : PDF, deux pages' },
           { k: 'url', l: 'Adresse', t: 'text', ph: 'https://… ou documents/reglement.pdf' },
           { k: 'page', l: 'ou page de l’appli', t: 'page', help: 'Si une page est choisie, elle remplace l’adresse.' }
         ]
       }]
     },
     separator: {
-      label: 'Séparateur', icon: '➖', group: 'Navigation', desc: 'Une ligne ou un espace pour aérer.',
+      label: 'Séparateur', icon: 'minus', group: 'Navigation', desc: 'Une ligne ou un espace pour aérer.',
       make: () => ({ style: 'line' }),
       summary: (b) => (b.style === 'space' ? 'Espace' : 'Ligne'),
       fields: [{ k: 'style', l: 'Aspect', t: 'select', o: [['line', 'Ligne'], ['space', 'Espace vide']] }]
     },
     cards: {
-      label: 'Cartes', icon: '🗃️', group: 'Listes', desc: 'Actualités, formations, équipe, stands… en liste, grille ou portraits.',
+      label: 'Cartes', icon: 'sitemap', group: 'Listes', desc: 'Actualités, formations, équipe, stands, en liste, en grille ou en portraits.',
       make: () => ({ style: 'liste', items: [{ title: 'Première carte', text: '', tag: '', image: '', page: '', url: '' }] }),
       summary: (b) => b.items.length + ' carte' + (b.items.length > 1 ? 's' : ''),
       fields: [
-        { k: 'style', l: 'Présentation', t: 'select', o: [['liste', 'Liste (petite image à gauche)'], ['grille', 'Grille (image en haut)'], ['portraits', 'Portraits ronds (équipe)']] },
+        { k: 'style', l: 'Présentation', t: 'select', o: [['liste', 'Liste (petite image à gauche)'], ['grille', 'Grille (image en haut)'], ['portraits', 'Portraits carrés (équipe)']] },
         {
           k: 'items', t: 'items', l: 'Cartes', add: 'Ajouter une carte', itemTitle: (it) => it.title || 'Carte',
           make: () => ({ title: 'Nouvelle carte', text: '', tag: '', image: '', page: '', url: '' }),
           fields: [
             { k: 'title', l: 'Titre', t: 'text', ph: 'Ex : Marie Dupont' },
-            { k: 'tag', l: 'Étiquette (facultatif)', t: 'text', ph: 'Ex : Formatrice, Actualité…' },
+            { k: 'tag', l: 'Étiquette (facultatif)', t: 'text', ph: 'Ex : Formatrice, Actualité' },
             { k: 'text', l: 'Description', t: 'textarea', rows: 2 },
             { k: 'image', l: 'Image (facultatif)', t: 'image', max: 480 },
             { k: 'page', l: 'Ouvre une page de l’appli (facultatif)', t: 'page' },
@@ -217,7 +241,7 @@
       ]
     },
     events: {
-      label: 'Agenda', icon: '📅', group: 'Listes', desc: 'Dates triées automatiquement, avec « Ajouter à mon agenda ».',
+      label: 'Agenda', icon: 'calendar', group: 'Listes', desc: 'Dates triées automatiquement, avec « Ajouter à mon agenda ».',
       make: () => ({ hidePast: true, calendar: true, items: [{ date: '', time: '', title: 'Nouvel événement', place: '', text: '' }] }),
       summary: (b) => b.items.length + ' date' + (b.items.length > 1 ? 's' : ''),
       fields: [
@@ -237,7 +261,7 @@
       ]
     },
     faq: {
-      label: 'Questions fréquentes', icon: '❓', group: 'Listes', desc: 'Questions / réponses repliables.',
+      label: 'Questions fréquentes', icon: 'question-circle', group: 'Listes', desc: 'Questions et réponses repliables.',
       make: () => ({ items: [{ q: 'Votre question ?', a: 'Votre réponse.' }] }),
       summary: (b) => b.items.length + ' question' + (b.items.length > 1 ? 's' : ''),
       fields: [{
@@ -250,7 +274,7 @@
       }]
     },
     countdown: {
-      label: 'Compte à rebours', icon: '⏳', group: 'Listes', desc: 'Affiche « J-12 » avant une date importante.',
+      label: 'Compte à rebours', icon: 'clock', group: 'Listes', desc: 'Affiche « J-12 » avant une date importante.',
       make: () => ({ date: '', label: '' }),
       summary: (b) => b.date || 'Choisissez une date',
       fields: [
@@ -259,42 +283,42 @@
       ]
     },
     contact: {
-      label: 'Contact', icon: '📞', group: 'Infos pratiques', desc: 'Adresse, téléphone, mail, horaires, site web.',
+      label: 'Contact', icon: 'phone', group: 'Infos pratiques', desc: 'Adresse, téléphone, courriel, horaires, site web.',
       make: () => ({ org: '', address: '', phone: '', email: '', hours: '', website: '' }),
       summary: (b) => b.org || b.email || b.phone || 'Coordonnées',
       fields: [
-        { k: 'org', l: 'Nom', t: 'text', ph: 'Ex : Centre de formation Horizon' },
-        { k: 'address', l: 'Adresse', t: 'textarea', rows: 2, ph: '12 rue des Écoles\n75000 Paris' },
-        { k: 'phone', l: 'Téléphone', t: 'text', ph: '01 23 45 67 89' },
-        { k: 'email', l: 'Mail', t: 'text', ph: 'contact@exemple.org' },
+        { k: 'org', l: 'Nom', t: 'text', ph: 'Ex : CRFPE' },
+        { k: 'address', l: 'Adresse', t: 'textarea', rows: 2, ph: '465 rue Courtois\n59000 Lille' },
+        { k: 'phone', l: 'Téléphone', t: 'text', ph: '+33 (0)3 20 14 93 00' },
+        { k: 'email', l: 'Courriel', t: 'text', ph: 'contact@exemple.org' },
         { k: 'hours', l: 'Horaires', t: 'textarea', rows: 2, ph: 'Du lundi au vendredi\n8 h 30 – 17 h 30' },
-        { k: 'website', l: 'Site web', t: 'text', ph: 'https://exemple.org' }
+        { k: 'website', l: 'Site web', t: 'text', ph: 'https://www.crfpe.fr' }
       ]
     },
     map: {
-      label: 'Plan d’accès', icon: '🗺️', group: 'Infos pratiques', desc: 'Carte OpenStreetMap, sans compte ni clé.',
+      label: 'Plan d’accès', icon: 'map-marker', group: 'Infos pratiques', desc: 'Carte OpenStreetMap, sans compte ni clé.',
       make: () => ({ where: '', label: 'Plan d’accès' }),
       summary: (b) => b.label || b.where,
       fields: [
-        { k: 'where', l: 'Lien de la carte ou coordonnées', t: 'text', ph: 'https://www.openstreetmap.org/#map=17/48.8584/2.2945', status: (b) => {
-          if (!b.where.trim()) return { level: 'info', t: 'Sur openstreetmap.org : cherchez votre adresse, puis copiez le lien de la barre d’adresse. Ou collez des coordonnées : 48.8584, 2.2945.' };
-          return H.mapInfo(b.where) ? { level: 'ok', t: '✔ Position reconnue' } : { level: 'bad', t: 'Position non reconnue. Collez un lien OpenStreetMap, un lien Google Maps (avec @lat,lon) ou « 48.8584, 2.2945 ».' };
+        { k: 'where', l: 'Lien de la carte ou coordonnées', t: 'text', ph: 'https://www.openstreetmap.org/#map=17/50.6292/3.0573', status: (b) => {
+          if (!b.where.trim()) return { level: 'info', t: 'Sur openstreetmap.org : cherchez votre adresse, puis copiez le lien de la barre d’adresse. Ou collez des coordonnées : 50.6292, 3.0573.' };
+          return H.mapInfo(b.where) ? { level: 'ok', t: 'Position reconnue.' } : { level: 'bad', t: 'Position non reconnue. Collez un lien OpenStreetMap, un lien Google Maps (avec @lat,lon) ou « 50.6292, 3.0573 ».' };
         } },
         { k: 'label', l: 'Légende', t: 'text' }
       ]
     },
     embed: {
-      label: 'Formulaire / contenu intégré', icon: '🧾', group: 'Formulaires et contenus', desc: 'Tally, Microsoft Forms, Google Forms, Framaforms, LearningApps, Genially, Padlet…',
+      label: 'Formulaire ou contenu intégré', icon: 'puzzle-piece', group: 'Formulaires et contenus', desc: 'Tally, Microsoft Forms, Google Forms, Framaforms, LearningApps, Genially, Padlet…',
       make: () => ({ url: '', mode: 'inline', label: 'Ouvrir le formulaire', title: '', height: 700 }),
       summary: (b) => { const i = H.embedInfo(b.url); return i ? i.service + (b.mode === 'button' ? ' (bouton)' : '') : 'Aucune adresse'; },
       fields: [
         { k: 'url', l: 'Adresse ou code d’intégration', t: 'textarea', rows: 3, ph: 'https://tally.so/r/abc123\nou <iframe src="https://forms.office.com/…" …></iframe>', refresh: true,
-          help: 'Collez l’adresse de partage OU le code « intégrer / embed » fourni par le service : l’appli en extrait l’adresse toute seule.',
+          help: 'Collez l’adresse de partage OU le code « intégrer » fourni par le service : l’appli en extrait l’adresse toute seule.',
           status: (b) => {
-            if (!b.url.trim()) return { level: 'info', t: 'Tally : Partager › lien. Microsoft Forms : Collecter les réponses › Intégrer. Google Forms : Envoyer › < > .' };
+            if (!b.url.trim()) return { level: 'info', t: 'Tally : Partager, lien. Microsoft Forms : Collecter les réponses, Intégrer. Google Forms : Envoyer, onglet « < > ».' };
             const i = H.embedInfo(b.url);
             if (!i) return { level: 'bad', t: 'Adresse non reconnue : elle doit commencer par https://' };
-            return { level: i.warn ? 'warn' : 'ok', t: '✔ ' + i.service + ' détecté' + (i.warn ? ' — ' + i.warn : '') };
+            return { level: i.warn ? 'warn' : 'ok', t: i.service + ' détecté.' + (i.warn ? ' ' + i.warn : '') };
           } },
         { k: 'mode', l: 'Affichage', t: 'select', refresh: true, o: [['inline', 'Dans la page (cadre intégré)'], ['button', 'Bouton qui ouvre dans un nouvel onglet']], help: 'Le bouton est la solution de secours si le service refuse d’être affiché dans un cadre.' },
         { k: 'label', l: 'Texte du bouton', t: 'text', show: (b) => b.mode === 'button' },
@@ -317,25 +341,22 @@
   function normalizeApp(raw) {
     if (!raw || typeof raw !== 'object' || !Array.isArray(raw.pages)) throw new Error('Ce fichier n’est pas une appli reconnue.');
     const th = raw.theme || {};
+    const hexOk = (c) => /^#[0-9a-f]{6}$/i.test(c);
+    const team = ['instit', 'eje', 'fc', 'sesame', 'custom'].includes(th.team) ? th.team : (th.preset === 'ocean' || !th.preset ? 'instit' : 'custom');
+    const theme = { team, primary: hexOk(th.primary) ? th.primary : BLUE, accent: hexOk(th.accent) ? th.accent : CYAN, dark: !!th.dark };
+    if (team !== 'custom') { theme.primary = BLUE; theme.accent = CYAN; }
     const a = {
-      v: 1, id: str(raw.id) || uid(), title: str(raw.title) || 'Mon appli', subtitle: str(raw.subtitle), logo: str(raw.logo),
-      lang: raw.lang === 'en' ? 'en' : 'fr',
-      theme: {
-        preset: str(th.preset) || 'custom',
-        primary: /^#[0-9a-f]{6}$/i.test(th.primary) ? th.primary : DEFAULT_THEME.primary,
-        accent: /^#[0-9a-f]{6}$/i.test(th.accent) ? th.accent : DEFAULT_THEME.accent,
-        dark: !!th.dark,
-        radius: ['carre', 'doux', 'rond'].includes(th.radius) ? th.radius : 'doux',
-        font: ['moderne', 'classique', 'arrondi'].includes(th.font) ? th.font : 'moderne'
-      },
-      pages: []
+      v: 2, id: str(raw.id) || uid(), title: str(raw.title) || 'Mon appli', subtitle: str(raw.subtitle), logo: str(raw.logo),
+      lang: raw.lang === 'en' ? 'en' : 'fr', theme, pages: []
     };
     const ids = [];
     raw.pages.forEach((p, i) => {
       if (!p || typeof p !== 'object') return;
       const id = newId(ids, /^[\w-]+$/.test(str(p.id)) ? p.id : p.title);
       ids.push(id);
-      const page = { id, title: str(p.title) || 'Page ' + (i + 1), icon: str(p.icon).slice(0, 8), tab: p.tab !== false, showTitle: p.showTitle !== false, blocks: [] };
+      let ic = str(p.icon);
+      if (!ICONS[ic]) ic = LEGACY_EMOJI[ic] || '';
+      const page = { id, title: str(p.title) || 'Page ' + (i + 1), icon: ic, tab: p.tab !== false, showTitle: p.showTitle !== false, blocks: [] };
       (Array.isArray(p.blocks) ? p.blocks : []).forEach((b) => {
         if (!b || !BLOCKS[b.type]) return;
         const nb = Object.assign({}, BLOCKS[b.type].make(), b, { id: str(b.id) || uid(), type: b.type });
@@ -346,14 +367,14 @@
       });
       a.pages.push(page);
     });
-    if (!a.pages.length) a.pages.push({ id: 'accueil', title: 'Accueil', icon: '🏠', tab: true, showTitle: true, blocks: [] });
+    if (!a.pages.length) a.pages.push({ id: 'accueil', title: 'Accueil', icon: 'building', tab: true, showTitle: true, blocks: [] });
     a.pages[0].tab = true;
     return a;
   }
 
   /* ------------------------------------------------------------------ état + historique */
   let app = null;
-  const view = { pageId: null, openBlock: null, gotoPending: true };
+  const view = { pageId: null, openBlock: null, gotoPending: true, focusBlock: null };
   let hist = [], hi = -1, dirtyFile = false;
 
   function currentPage() { return app.pages.find((p) => p.id === view.pageId) || app.pages[0]; }
@@ -388,21 +409,26 @@
     try {
       await DB.put({ id: app.id, title: app.title, updated: Date.now(), pages: app.pages.length, data: app });
       mem('atelier:last', app.id);
-      st.textContent = '✔ Enregistré dans ce navigateur à ' + new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+      st.replaceChildren(icon('check', 14), 'Enregistré dans ce navigateur à ' + new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }));
       st.className = 'save-status';
     } catch (e) {
-      st.textContent = '⚠ Enregistrement automatique impossible : téléchargez votre projet (.json)';
+      st.replaceChildren(icon('exclamation-circle', 14), 'Enregistrement automatique impossible : téléchargez votre projet (.json).');
       st.className = 'save-status warn';
     }
   };
   const scheduleSave = debounce(doSave, 700);
 
   /* ------------------------------------------------------------------ aperçu */
+  function exportable(a) {
+    const icons = {};
+    H.iconNames(a).forEach((n) => { if (ICONS[n]) icons[n] = ICONS[n]; });
+    return Object.assign({}, a, { icons });
+  }
   let previewReady = false;
   const frame = $('#preview');
   const postPreview = () => {
     if (!previewReady || !frame.contentWindow) return;
-    frame.contentWindow.postMessage({ type: 'app', app, goto: view.gotoPending ? view.pageId : null, focus: view.focusBlock || null }, '*');
+    frame.contentWindow.postMessage({ type: 'app', app: exportable(app), goto: view.gotoPending ? view.pageId : null, focus: view.focusBlock || null }, '*');
     view.gotoPending = false; view.focusBlock = null;
   };
   const schedulePreview = debounce(postPreview, 120);
@@ -446,35 +472,37 @@
     ta.focus(); ta.dispatchEvent(new Event('input', { bubbles: true }));
   }
   function mdToolbar(ta) {
-    const b = (label, title, fn) => el('button', { type: 'button', class: 'tb', title, 'aria-label': title, onclick: fn, text: label });
+    const b = (label, title, fn, cls) => el('button', { type: 'button', class: 'tb ' + (cls || ''), title, 'aria-label': title, onclick: fn, text: label });
     return el('div', { class: 'md-tools', role: 'toolbar', 'aria-label': 'Mise en forme' }, [
-      b('G', 'Gras', () => wrapSel(ta, '**', '**', 'texte')),
-      b('I', 'Italique', () => wrapSel(ta, '*', '*', 'texte')),
-      b('🔗', 'Lien', () => {
+      b('G', 'Gras', () => wrapSel(ta, '**', '**', 'texte'), 'b'),
+      b('I', 'Italique', () => wrapSel(ta, '*', '*', 'texte'), 'i'),
+      el('button', { type: 'button', class: 'tb', title: 'Lien', 'aria-label': 'Lien', onclick: () => {
         const s = ta.selectionStart, e = ta.selectionEnd, sel = ta.value.slice(s, e) || 'texte du lien';
         ta.setRangeText('[' + sel + '](https://)', s, e, 'end');
         const p = s + sel.length + 3; ta.setSelectionRange(p, p + 8); ta.focus(); ta.dispatchEvent(new Event('input', { bubbles: true }));
-      }),
-      b('• Liste', 'Liste à puces', () => {
+      } }, icon('link', 14)),
+      el('button', { type: 'button', class: 'tb', title: 'Liste à puces', 'aria-label': 'Liste à puces', onclick: () => {
         const s = ta.selectionStart, e = ta.selectionEnd, a = ta.value.lastIndexOf('\n', s - 1) + 1;
         const chunk = ta.value.slice(a, e) || '';
         ta.setRangeText(chunk.split('\n').map((l) => (l.startsWith('- ') ? l : '- ' + l)).join('\n'), a, e, 'end');
         ta.focus(); ta.dispatchEvent(new Event('input', { bubbles: true }));
-      })
+      } }, icon('list-ul', 14))
     ]);
   }
 
+  /* Sélecteur d'image : miniature + actions. def.extra : boutons supplémentaires */
   function imageField(def, obj, onChange) {
     const wrap = el('div', { class: 'img-field' });
-    const input = el('input', { type: 'file', accept: 'image/png,image/jpeg,image/webp,image/gif', class: 'sr-only', tabindex: '-1' });
+    const input = el('input', { type: 'file', accept: 'image/png,image/jpeg,image/webp,image/gif', class: 'sr-only', tabindex: '-1', 'aria-label': def.l || 'Choisir une image' });
     function draw() {
       wrap.querySelectorAll('.img-row').forEach((n) => n.remove());
       const v = obj[def.k];
-      const thumb = v ? el('img', { src: v, alt: '', class: 'thumb' }) : el('span', { class: 'thumb empty', 'aria-hidden': 'true', text: '🖼️' });
-      const pick = el('button', { type: 'button', class: 'btn small', text: v ? 'Changer l’image…' : 'Choisir une image…', onclick: () => input.click() });
-      const rm = v ? el('button', { type: 'button', class: 'btn small ghost', text: 'Retirer', onclick: () => { obj[def.k] = ''; draw(); onChange(def, true); } }) : null;
+      const thumb = v ? el('img', { src: v, alt: '', class: 'thumb' + (def.onBlue ? ' on-blue' : '') }) : el('span', { class: 'thumb empty', 'aria-hidden': 'true' }, icon('file', 22));
+      const pick = btn(v ? 'Changer l’image…' : 'Choisir une image…', null, { class: 'btn small', onclick: () => input.click() });
+      const rm = v ? btn('Retirer', null, { class: 'btn small ghost', onclick: () => { obj[def.k] = ''; draw(); onChange(def, true); } }) : null;
       const size = v ? el('span', { class: 'muted', text: fmtBytes(Math.round(v.length * 0.75)) }) : null;
-      wrap.insertBefore(el('div', { class: 'img-row' }, [thumb, el('div', { class: 'img-actions' }, [pick, rm, size])]), input);
+      const extra = def.extra ? def.extra(obj, () => { draw(); onChange(def, true); }) : null;
+      wrap.insertBefore(el('div', { class: 'img-row' }, [thumb, el('div', { class: 'img-actions' }, [pick, extra, rm, size])]), input);
     }
     input.addEventListener('change', async () => {
       const f = input.files && input.files[0]; input.value = '';
@@ -486,18 +514,19 @@
     return wrap;
   }
 
+  const STATUS_ICON = { ok: 'check-circle', info: 'info-circle', warn: 'exclamation-circle', bad: 'exclamation-circle' };
+
   /* Rend un champ. onChange(def, immediate) est appelé après chaque modification. */
   let fieldSeq = 0;
   function field(def, obj, onChange) {
     const id = 'f' + (++fieldSeq);
-    let ctl;
-    const fire = (immediate) => { onChange(def, immediate); if (statusEl) updateStatus(); };
-    const wrapCls = 'field' + (def.t === 'checkbox' ? ' check' : '');
-    let statusEl = null;
+    let ctl, statusEl = null;
     const updateStatus = () => {
       const r = def.status(obj);
-      statusEl.className = 'status ' + r.level; statusEl.textContent = r.t;
+      statusEl.className = 'status ' + r.level;
+      statusEl.replaceChildren(icon(STATUS_ICON[r.level] || 'info-circle', 16), el('span', { text: r.t }));
     };
+    const fire = (immediate) => { onChange(def, immediate); if (statusEl) updateStatus(); };
     switch (def.t) {
       case 'text': case 'date': case 'time': case 'number':
         ctl = el('input', { id, type: def.t, value: obj[def.k] == null ? '' : obj[def.k], placeholder: def.ph, min: def.min, max: def.max, step: def.step, autocomplete: 'off',
@@ -515,7 +544,7 @@
         break;
       case 'page':
         ctl = el('select', { id, onchange: (e) => { obj[def.k] = e.target.value; fire(true); } },
-          OPT.yesNoPage().map((o) => el('option', { value: o[0], text: o[1], selected: obj[def.k] === o[0] })));
+          OPT.pages().map((o) => el('option', { value: o[0], text: o[1], selected: obj[def.k] === o[0] })));
         break;
       case 'checkbox':
         ctl = el('input', { id, type: 'checkbox', checked: !!obj[def.k], onchange: (e) => { obj[def.k] = e.target.checked; fire(true); } });
@@ -528,9 +557,12 @@
     const help = def.help ? el('p', { class: 'help', text: def.help }) : null;
     if (def.status) { statusEl = el('p', { class: 'status', role: 'status' }); updateStatus(); }
     return def.t === 'checkbox'
-      ? el('div', { class: wrapCls }, [ctl, label, help])
-      : el('div', { class: wrapCls }, [label, ctl, statusEl, help]);
+      ? el('div', { class: 'field check' }, [ctl, label, help])
+      : el('div', { class: 'field' }, [label, ctl, statusEl, help]);
   }
+
+  const mini = (ic, title, fn, dis) => el('button', { type: 'button', class: 'mini', title, 'aria-label': title, disabled: dis, onclick: (e) => { e.preventDefault(); e.stopPropagation(); fn(e); } }, icon(ic, 16));
+  const grip = (fixed) => el('span', { class: 'grip' + (fixed ? ' fixed' : ''), draggable: fixed ? null : 'true', title: fixed ? 'Page d’accueil : position fixe' : 'Glisser pour réordonner', 'aria-hidden': 'true' });
 
   /* Liste d'éléments (cartes, dates, questions, liens) : réordonnable, repliable */
   function itemsEditor(def, obj, onChange) {
@@ -542,13 +574,11 @@
       list.replaceChildren();
       arr().forEach((it, i) => {
         const sum = el('span', { class: 'item-sum', text: def.itemTitle(it) });
-        const handle = el('span', { class: 'handle', draggable: 'true', title: 'Glisser pour réordonner', 'aria-hidden': 'true', text: '⠿' });
-        const mini = (txt, title, fn, dis) => el('button', { type: 'button', class: 'mini', title, 'aria-label': title, disabled: dis, text: txt, onclick: (e) => { e.preventDefault(); e.stopPropagation(); fn(); } });
         const det = el('details', { class: 'item', open: i === open }, [
-          el('summary', null, [handle, sum, el('span', { class: 'item-btns' }, [
-            mini('↑', 'Monter', () => move(i, i - 1), i === 0),
-            mini('↓', 'Descendre', () => move(i, i + 1), i === arr().length - 1),
-            mini('✕', 'Supprimer', () => { arr().splice(i, 1); open = -1; draw(); onChange(def, true); })
+          el('summary', null, [grip(false), sum, el('span', { class: 'item-btns' }, [
+            mini('arrow-up', 'Monter', () => move(i, i - 1), i === 0),
+            mini('arrow-down', 'Descendre', () => move(i, i + 1), i === arr().length - 1),
+            mini('trash', 'Supprimer', () => { arr().splice(i, 1); open = -1; draw(); onChange(def, true); })
           ])]),
           el('div', { class: 'item-body' }, def.fields.map((f) => field(f, it, (fd, imm) => { sum.textContent = def.itemTitle(it); onChange(def, imm); })))
         ]);
@@ -560,15 +590,15 @@
       if (to < 0 || to >= arr().length || from === to) return;
       const [x] = arr().splice(from, 1); arr().splice(to, 0, x); open = to; draw(); onChange(def, true);
     }
-    sortable(list, 'details.item', '.handle', (from, to) => move(from, to));
+    sortable(list, 'details.item', '.grip', (from, to) => move(from, to));
     draw();
     box.appendChild(el('div', { class: 'items-head' }, [el('span', { class: 'items-title', text: def.l })]));
     box.appendChild(list);
-    box.appendChild(el('button', { type: 'button', class: 'btn small', text: '+ ' + def.add, onclick: () => { arr().push(def.make()); open = arr().length - 1; draw(); onChange(def, true); const d = list.lastElementChild; if (d) { const f = d.querySelector('input,textarea'); if (f) f.focus(); } } }));
+    box.appendChild(btn(def.add, 'plus', { class: 'btn small', onclick: () => { arr().push(def.make()); open = arr().length - 1; draw(); onChange(def, true); const d = list.lastElementChild; if (d) { const f = d.querySelector('input,textarea'); if (f) f.focus(); } } }));
     return box;
   }
 
-  /* Glisser-déposer natif (+ boutons ↑ ↓ pour le clavier et le tactile) */
+  /* Glisser-déposer natif (+ boutons de flèche pour le clavier et le tactile) */
   function sortable(container, itemSel, handleSel, onMove) {
     let from = null;
     const items = () => Array.from(container.querySelectorAll(':scope > ' + itemSel));
@@ -612,8 +642,8 @@
     host.replaceChildren();
     if (!page.blocks.length) {
       host.appendChild(el('div', { class: 'empty-blocks' }, [
-        el('p', { text: 'Cette page est vide.' }),
-        el('p', { class: 'muted', text: 'Ajoutez un premier bloc : un titre, du texte, une image, un formulaire…' })
+        el('p', { class: 'empty-t', text: 'Cette page ne contient encore aucun bloc.' }),
+        el('p', { class: 'muted', text: 'Utilisez le bouton « Ajouter un bloc », sous la liste des pages : titre, texte, image, formulaire…' })
       ]));
     }
     page.blocks.forEach((b, i) => host.appendChild(blockCard(page, b, i)));
@@ -630,18 +660,17 @@
     const sumEl = el('span', { class: 'blk-sum', text: def.summary(b) || '…' });
     const toggle = el('button', { type: 'button', class: 'blk-toggle', 'aria-expanded': String(isOpen), 'aria-controls': 'body-' + b.id,
       onclick: () => { view.openBlock = isOpen ? null : b.id; if (!isOpen) { view.focusBlock = b.id; schedulePreview(); } renderBlocks(); } }, [
-      el('span', { class: 'blk-icon', 'aria-hidden': 'true', text: def.icon }),
+      el('span', { class: 'blk-icon' }, icon(def.icon, 18)),
       el('span', { class: 'blk-name', text: def.label }), sumEl
     ]);
-    const mini = (txt, title, fn, dis) => el('button', { type: 'button', class: 'mini', title, 'aria-label': title, disabled: dis, text: txt, onclick: fn });
     const head = el('header', { class: 'blk-head' }, [
-      el('span', { class: 'handle', draggable: 'true', title: 'Glisser pour déplacer', 'aria-hidden': 'true', text: '⠿' }),
+      grip(false),
       toggle,
       el('span', { class: 'blk-btns' }, [
-        mini('↑', 'Monter le bloc', () => moveBlock(page, i, i - 1), i === 0),
-        mini('↓', 'Descendre le bloc', () => moveBlock(page, i, i + 1), i === page.blocks.length - 1),
-        mini('⧉', 'Dupliquer le bloc', () => { const c = clone(b); c.id = uid(); page.blocks.splice(i + 1, 0, c); view.openBlock = c.id; renderBlocks(); changed({ now: true }); }),
-        mini('🗑', 'Supprimer le bloc', () => {
+        mini('arrow-up', 'Monter le bloc', () => moveBlock(page, i, i - 1), i === 0),
+        mini('arrow-down', 'Descendre le bloc', () => moveBlock(page, i, i + 1), i === page.blocks.length - 1),
+        mini('plus', 'Dupliquer le bloc', () => { const c = clone(b); c.id = uid(); page.blocks.splice(i + 1, 0, c); view.openBlock = c.id; renderBlocks(); changed({ now: true }); }),
+        mini('trash', 'Supprimer le bloc', () => {
           if (!confirm('Supprimer ce bloc « ' + def.label + ' » ?')) return;
           page.blocks.splice(i, 1); if (view.openBlock === b.id) view.openBlock = null; renderBlocks(); changed({ now: true });
         })
@@ -667,21 +696,21 @@
     return card;
   }
 
-  /* ------------------------------------------------------------------ colonne de gauche : pages / apparence / infos */
+  /* ------------------------------------------------------------------ colonne de gauche : pages */
   function renderPagesList() {
     const ul = $('#pages-list'); ul.replaceChildren();
     app.pages.forEach((p, i) => {
       const sel = p.id === currentPage().id;
       ul.appendChild(el('li', { class: 'page-row' + (sel ? ' sel' : ''), 'data-id': p.id }, [
-        el('span', { class: 'handle' + (i === 0 ? ' fixed' : ''), draggable: i === 0 ? null : 'true', title: i === 0 ? 'Page d’accueil (position fixe)' : 'Glisser pour réordonner', 'aria-hidden': 'true', text: i === 0 ? '⌂' : '⠿' }),
+        grip(i === 0),
         el('button', { type: 'button', class: 'page-btn', 'aria-current': sel ? 'true' : null, onclick: () => selectPage(p.id) }, [
-          el('span', { class: 'pg-ico', 'aria-hidden': 'true', text: p.icon || '•' }), el('span', { class: 'pg-t', text: p.title }),
+          icon(p.icon || 'file-text', 18, 'pg-ico'), el('span', { class: 'pg-t', text: p.title }),
           p.tab === false ? el('span', { class: 'pg-hidden', title: 'Page cachée : on y accède par un bouton ou une carte', text: 'cachée' }) : null
         ])
       ]));
     });
   }
-  sortable($('#pages-list'), 'li.page-row', '.handle', (from, to) => {
+  sortable($('#pages-list'), 'li.page-row', '.grip', (from, to) => {
     if (from === 0 || to === 0) { toast('La première page est la page d’accueil.'); return; }
     const [x] = app.pages.splice(from, 1); app.pages.splice(to, 0, x);
     renderPagesList(); changed({ now: true });
@@ -696,21 +725,23 @@
     const p = currentPage(), idx = app.pages.indexOf(p), host = $('#page-settings');
     host.replaceChildren();
     const refreshList = () => renderPagesList();
+    const iconBtn = el('span', { class: 'cur-ico' }, icon(p.icon || 'file-text', 20));
     host.appendChild(el('div', { class: 'row' }, [
       el('div', { class: 'field grow' }, [
         el('label', { for: 'pg-title', text: 'Nom de la page' }),
         el('input', { id: 'pg-title', type: 'text', value: p.title, oninput: (e) => { p.title = e.target.value; refreshList(); changed(); } })
-      ]),
-      el('div', { class: 'field icon-field' }, [
-        el('label', { for: 'pg-icon', text: 'Pictogramme' }),
-        el('input', { id: 'pg-icon', type: 'text', value: p.icon, maxlength: '8', 'aria-describedby': 'pg-icon-help', oninput: (e) => { p.icon = e.target.value; refreshList(); changed(); } })
       ])
     ]));
-    const emojiBox = el('details', { class: 'emoji-pick' }, [
-      el('summary', { text: 'Choisir un pictogramme' }),
-      el('div', { class: 'emoji-grid' }, EMOJIS.map((em) => el('button', { type: 'button', class: 'emoji', text: em, 'aria-label': em, onclick: () => { p.icon = em; $('#pg-icon').value = em; refreshList(); changed({ now: true }); } })))
-    ]);
-    host.appendChild(emojiBox);
+    const grid = el('div', { class: 'icon-grid', role: 'group', 'aria-label': 'Pictogrammes' });
+    Object.keys(ICON_LABELS).forEach((n) => {
+      if (!ICONS[n]) return;
+      grid.appendChild(el('button', { type: 'button', class: 'icon-opt' + (p.icon === n ? ' sel' : ''), title: ICON_LABELS[n], 'aria-label': ICON_LABELS[n], 'aria-pressed': String(p.icon === n),
+        onclick: () => { p.icon = n; refreshList(); renderPageSettings(); changed({ now: true }); } }, icon(n, 20)));
+    });
+    host.appendChild(el('details', { class: 'icon-pick' }, [
+      el('summary', null, [iconBtn, el('span', { text: 'Pictogramme de la page' }), icon('chevron-down', 12, 'chev')]),
+      grid
+    ]));
     host.appendChild(el('div', { class: 'checks' }, [
       el('label', { class: 'check' }, [el('input', { type: 'checkbox', checked: p.tab !== false, disabled: idx === 0, onchange: (e) => { p.tab = e.target.checked; refreshList(); renderPageSettings(); changed({ now: true }); } }),
         el('span', { text: idx === 0 ? 'Page d’accueil (toujours dans la barre d’onglets)' : 'Afficher dans la barre d’onglets' })]),
@@ -719,14 +750,14 @@
     ]));
     if (idx !== 0 && p.tab === false) host.appendChild(el('p', { class: 'help', text: 'Page cachée : les visiteurs l’atteignent par un bouton, une carte ou un lien. Pratique pour un parcours ou une énigme.' }));
     host.appendChild(el('div', { class: 'row actions' }, [
-      el('button', { type: 'button', class: 'btn small', text: 'Dupliquer la page', onclick: () => duplicatePage(p) }),
-      idx === 0 ? null : el('button', { type: 'button', class: 'btn small danger', text: 'Supprimer la page', onclick: () => deletePage(p) })
+      btn('Dupliquer la page', null, { class: 'btn small', onclick: () => duplicatePage(p) }),
+      idx === 0 ? null : btn('Supprimer la page', 'trash', { class: 'btn small danger', onclick: () => deletePage(p) })
     ]));
   }
 
   function addPage() {
     const title = 'Nouvelle page';
-    const p = { id: newId(app.pages.map((x) => x.id), title), title, icon: '📄', tab: true, showTitle: true, blocks: [] };
+    const p = { id: newId(app.pages.map((x) => x.id), title), title, icon: 'file-text', tab: true, showTitle: true, blocks: [] };
     app.pages.push(p); selectPage(p.id); changed({ now: true });
     const t = $('#pg-title'); if (t) { t.focus(); t.select(); }
   }
@@ -747,41 +778,78 @@
     toast('Page supprimée.' + (n ? ' ' + n + ' lien(s) vers cette page ont été retirés.' : ''));
   }
 
+  /* ------------------------------------------------------------------ fenêtre Configuration */
   function renderTheme() {
     const t = app.theme, host = $('#theme-panel'); host.replaceChildren();
     const apply = () => { renderTheme(); changed({ now: true }); };
-    host.appendChild(el('div', { class: 'swatches', role: 'radiogroup', 'aria-label': 'Palettes' }, PRESETS.map((pr) =>
-      el('button', { type: 'button', class: 'swatch' + (t.preset === pr.key ? ' sel' : ''), role: 'radio', 'aria-checked': String(t.preset === pr.key), title: pr.name,
-        onclick: () => { Object.assign(t, { preset: pr.key, primary: pr.primary, accent: pr.accent, dark: pr.dark }); apply(); } }, [
-        el('span', { class: 'sw-dots', style: 'background:' + pr.primary }, el('i', { style: 'background:' + pr.accent })),
-        el('span', { text: pr.name })
-      ]))));
-    const colour = (label, key) => el('div', { class: 'field' }, [
-      el('label', { for: 'th-' + key, text: label }),
-      el('input', { id: 'th-' + key, type: 'color', value: t[key], oninput: (e) => { t[key] = e.target.value; t.preset = 'custom'; changed(); host.querySelectorAll('.swatch').forEach((s) => { s.classList.remove('sel'); s.setAttribute('aria-checked', 'false'); }); } })
-    ]);
-    host.appendChild(el('div', { class: 'row' }, [colour('Couleur principale', 'primary'), colour('Couleur d’accent', 'accent')]));
-    host.appendChild(el('label', { class: 'check' }, [el('input', { type: 'checkbox', checked: t.dark, onchange: (e) => { t.dark = e.target.checked; changed({ now: true }); } }), el('span', { text: 'Mode sombre' })]));
-    const sel = (label, key, opts) => el('div', { class: 'field' }, [
-      el('label', { for: 'th-' + key, text: label }),
-      el('select', { id: 'th-' + key, onchange: (e) => { t[key] = e.target.value; changed({ now: true }); } }, opts.map((o) => el('option', { value: o[0], text: o[1], selected: t[key] === o[0] })))
-    ]);
-    host.appendChild(el('div', { class: 'row' }, [
-      sel('Coins', 'radius', [['carre', 'Droits'], ['doux', 'Arrondis'], ['rond', 'Très arrondis']]),
-      sel('Police', 'font', [['moderne', 'Moderne'], ['classique', 'Classique (serif)'], ['arrondi', 'Arrondie']])
+    host.appendChild(el('h3', { class: 'cfg-h', text: 'Équipe' }));
+    host.appendChild(el('p', { class: 'help', text: 'Le bleu et le cyan du CRFPE sont communs à toutes les équipes. Chaque équipe ajoute ses couleurs d’accompagnement (filets, étiquettes, motif du bandeau).' }));
+    const cards = TEAM_LIST.map((tm) => el('button', { type: 'button', class: 'team' + (t.team === tm.key ? ' sel' : ''), role: 'radio', 'aria-checked': String(t.team === tm.key),
+      onclick: () => { Object.assign(t, { team: tm.key, primary: BLUE, accent: CYAN }); apply(); } }, [
+      el('span', { class: 'team-dots', 'aria-hidden': 'true' }, [el('i', { style: 'background:' + BLUE }), el('i', { style: 'background:' + CYAN }), el('i', { style: 'background:' + tm.dots[0] }), el('i', { style: 'background:' + tm.dots[1] })]),
+      el('span', { class: 'team-n', text: tm.name })
     ]));
+    cards.push(el('button', { type: 'button', class: 'team' + (t.team === 'custom' ? ' sel' : ''), role: 'radio', 'aria-checked': String(t.team === 'custom'),
+      onclick: () => { t.team = 'custom'; apply(); } }, [
+      el('span', { class: 'team-dots', 'aria-hidden': 'true' }, [el('i', { style: 'background:' + t.primary }), el('i', { style: 'background:' + t.accent })]),
+      el('span', { class: 'team-n', text: 'Couleur libre' })
+    ]));
+    host.appendChild(el('div', { class: 'teams', role: 'radiogroup', 'aria-label': 'Équipe' }, cards));
+    if (t.team === 'custom') {
+      const colour = (label, key) => el('div', { class: 'field' }, [
+        el('label', { for: 'th-' + key, text: label }),
+        el('input', { id: 'th-' + key, type: 'color', value: t[key], oninput: (e) => { t[key] = e.target.value; changed(); } })
+      ]);
+      host.appendChild(el('div', { class: 'row' }, [colour('Couleur principale', 'primary'), colour('Couleur d’accent', 'accent')]));
+      host.appendChild(el('p', { class: 'help', text: 'Les textes restent lisibles quelle que soit la couleur : l’Atelier choisit lui-même blanc ou bleu nuit sur vos couleurs.' }));
+    }
+    host.appendChild(el('h3', { class: 'cfg-h', text: 'Affichage' }));
+    host.appendChild(el('label', { class: 'check' }, [el('input', { type: 'checkbox', checked: t.dark, onchange: (e) => { t.dark = e.target.checked; changed({ now: true }); } }), el('span', { text: 'Mode sombre' })]));
+    host.appendChild(el('p', { class: 'help', text: 'Variante ajoutée par l’Atelier : elle ne figure pas dans la charte graphique du CRFPE.' }));
   }
 
   function renderInfo() {
     const host = $('#info-panel'); host.replaceChildren();
     const f = (def) => field(def, app, () => { changed(); });
-    host.appendChild(f({ k: 'title', l: 'Nom de l’appli', t: 'text', ph: 'Ex : Centre Horizon' }));
-    host.appendChild(f({ k: 'subtitle', l: 'Sous-titre (facultatif)', t: 'text', ph: 'Ex : Livret d’accueil' }));
-    host.appendChild(field({ k: 'logo', l: 'Logo (facultatif)', t: 'image', max: 192 }, app, () => changed({ now: true })));
+    host.appendChild(f({ k: 'title', l: 'Nom de l’appli', t: 'text', ph: 'Ex : Livret d’accueil EJE' }));
+    host.appendChild(f({ k: 'subtitle', l: 'Sous-titre (facultatif)', t: 'text', ph: 'Ex : Promotion 2026-2029' }));
+    host.appendChild(field({
+      k: 'logo', l: 'Logo', t: 'image', max: 192, onBlue: true,
+      help: 'Le logo est détaché du fond par un filet blanc, comme l’exige la charte.',
+      extra: (obj, redraw) => btn('Logo du CRFPE', null, { class: 'btn small', onclick: () => { obj.logo = window.CRFPE_LOGO; redraw(); } })
+    }, app, () => changed({ now: true })));
     host.appendChild(f({ k: 'lang', l: 'Langue de l’appli', t: 'select', o: [['fr', 'Français'], ['en', 'English']], help: 'Sert aux dates (lundi 2 septembre) et à l’accessibilité.' }));
   }
 
   function renderAll() { renderInfo(); renderTheme(); renderPagesList(); renderPageSettings(); renderBlocks(); }
+
+  const cfg = $('#dlg-config');
+  function showTab(id) {
+    document.querySelectorAll('#dlg-config [role=tab]').forEach((t) => {
+      const on = t.dataset.tab === id;
+      t.setAttribute('aria-selected', String(on)); t.tabIndex = on ? 0 : -1;
+      $('#panel-' + t.dataset.tab).hidden = !on;
+    });
+  }
+  function openConfig(tab) {
+    showTab(tab || 'theme');
+    if (!cfg.open) cfg.show();       // fenêtre non modale : l'aperçu reste visible et réagit en direct
+    $('#btn-config').setAttribute('aria-expanded', 'true');
+    const f = cfg.querySelector('[role=tab][aria-selected=true]'); if (f) f.focus();
+  }
+  function closeConfig() { cfg.close(); $('#btn-config').setAttribute('aria-expanded', 'false'); $('#btn-config').focus(); }
+  cfg.querySelectorAll('[role=tab]').forEach((t, i, all) => {
+    t.addEventListener('click', () => showTab(t.dataset.tab));
+    t.addEventListener('keydown', (e) => {
+      if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+      const n = all[(i + (e.key === 'ArrowRight' ? 1 : all.length - 1)) % all.length];
+      showTab(n.dataset.tab); n.focus();
+    });
+  });
+  cfg.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.preventDefault(); closeConfig(); } });
+  $('#cfg-done').addEventListener('click', closeConfig);
+  $('#cfg-close').addEventListener('click', closeConfig);
+  $('#btn-config').addEventListener('click', () => { if (cfg.open) closeConfig(); else openConfig(); });
 
   /* ------------------------------------------------------------------ export */
   async function sha256b64(text) {
@@ -797,17 +865,18 @@
   function faviconHref(a) {
     if (/^data:image\/(png|jpeg|webp|gif);base64,/i.test(a.logo)) return a.logo;
     const ini = (a.title.trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join('') || 'A').toUpperCase();
-    const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="' + a.theme.primary + '"/><text x="32" y="43" font-size="30" font-family="sans-serif" font-weight="700" text-anchor="middle" fill="#fff">' + ini.replace(/[<&]/g, '') + '</text></svg>';
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="5" fill="' + a.theme.primary + '"/><text x="32" y="43" font-size="30" font-family="sans-serif" font-weight="700" text-anchor="middle" fill="#fff">' + ini.replace(/[<&]/g, '') + '</text></svg>';
     return 'data:image/svg+xml,' + encodeURIComponent(svg);
   }
 
-  /* Fabrique le document HTML complet. preview=true : version pour l'iframe d'aperçu. */
+  /* Fabrique le document HTML complet. o.preview : version pour l'iframe d'aperçu. */
   async function buildHTML(a, o) {
     o = o || {};
     const runtime = '(' + window.MonAppRuntime.toString() + ')';
-    const css = window.MONAPP_CSS;
+    const css = (window.MONAPP_FONT_CSS || '') + window.MONAPP_CSS;
+    const exp = a ? exportable(a) : null;
     const origins = a ? H.frameOrigins(a) : [];
-    const data = a ? JSON.stringify(a).replace(/</g, '\\u003c').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029') : '';
+    const data = exp ? JSON.stringify(exp).replace(/</g, '\\u003c').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029') : '';
     const boot = o.preview
       ? runtime + '(document.getElementById("monapp"),null,{preview:true});'
       : runtime + '(document.getElementById("monapp"),JSON.parse(document.getElementById("monapp-data").textContent),{});';
@@ -816,7 +885,7 @@
       const hs = await sha256b64(boot), hc = await sha256b64(css);
       csp = "default-src 'none'; script-src " + (hs ? "'sha256-" + hs + "'" : "'unsafe-inline'") +
         "; style-src " + (hc ? "'sha256-" + hc + "'" : "'unsafe-inline'") +
-        "; img-src 'self' data: https:; media-src 'self' https: data:; frame-src " + (origins.join(' ') || "'none'") +
+        "; font-src data:; img-src 'self' data: https:; media-src 'self' https: data:; frame-src " + (origins.join(' ') || "'none'") +
         "; connect-src 'none'; form-action 'none'; base-uri 'none'";
     }
     const title = a ? a.title : 'Aperçu';
@@ -834,7 +903,7 @@
 
   /* ------------------------------------------------------------------ boîtes de dialogue */
   function closeOnBackdrop(d) { d.addEventListener('click', (e) => { if (e.target === d) d.close(); }); }
-  document.querySelectorAll('dialog').forEach(closeOnBackdrop);
+  document.querySelectorAll('dialog.modal').forEach(closeOnBackdrop);
 
   /* Ajouter un bloc */
   function openAddBlock() {
@@ -844,7 +913,7 @@
       if (!types.length) return;
       grid.appendChild(el('h3', { text: g }));
       grid.appendChild(el('div', { class: 'add-cards' }, types.map((k) => el('button', { type: 'button', class: 'add-card', onclick: () => addBlock(k) }, [
-        el('span', { class: 'ac-ico', 'aria-hidden': 'true', text: BLOCKS[k].icon }),
+        el('span', { class: 'ac-ico' }, icon(BLOCKS[k].icon, 22)),
         el('span', null, [el('b', { text: BLOCKS[k].label }), el('small', { text: BLOCKS[k].desc })])
       ]))));
     });
@@ -873,9 +942,9 @@
       list.forEach((r) => ul.appendChild(el('li', { class: 'proj' + (app && r.id === app.id ? ' cur' : '') }, [
         el('div', { class: 'proj-t' }, [el('b', { text: r.title || 'Sans titre' }), el('small', { text: r.pages + ' page' + (r.pages > 1 ? 's' : '') + ' · modifiée le ' + new Date(r.updated).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' }) })]),
         el('div', { class: 'proj-a' }, [
-          el('button', { type: 'button', class: 'btn small primary', text: app && r.id === app.id ? 'En cours' : 'Ouvrir', disabled: app && r.id === app.id, onclick: () => { loadApp(r.data); dlg.close(); } }),
-          el('button', { type: 'button', class: 'btn small', text: 'Dupliquer', onclick: async () => { const c = clone(r.data); c.id = uid(); c.title += ' (copie)'; await DB.put({ id: c.id, title: c.title, updated: Date.now(), pages: c.pages.length, data: c }); openHome(first); } }),
-          el('button', { type: 'button', class: 'btn small danger', text: 'Supprimer', onclick: async () => {
+          btn(app && r.id === app.id ? 'En cours' : 'Ouvrir', null, { class: 'btn small primary', disabled: app && r.id === app.id, onclick: () => { loadApp(r.data); dlg.close(); } }),
+          btn('Dupliquer', null, { class: 'btn small', onclick: async () => { const c = clone(r.data); c.id = uid(); c.title += ' (copie)'; await DB.put({ id: c.id, title: c.title, updated: Date.now(), pages: c.pages.length, data: c }); openHome(first); } }),
+          btn('Supprimer', 'trash', { class: 'btn small danger', onclick: async () => {
             if (!confirm('Supprimer définitivement « ' + r.title + ' » de ce navigateur ?\n(Un fichier .json ou .html déjà téléchargé n’est pas concerné.)')) return;
             await DB.del(r.id);
             if (app && r.id === app.id) { dlg.close(); loadApp(window.MONAPP_TEMPLATES[3].make(), true); } else openHome(first);
@@ -886,7 +955,7 @@
     }
     const tpl = $('#home-templates'); tpl.replaceChildren();
     window.MONAPP_TEMPLATES.forEach((t) => tpl.appendChild(el('button', { type: 'button', class: 'tpl', onclick: () => { loadApp(t.make(), true); dlg.close(); } }, [
-      el('span', { class: 'tpl-ico', 'aria-hidden': 'true', text: t.icon }), el('b', { text: t.name }), el('small', { text: t.desc })
+      el('span', { class: 'tpl-ico' }, icon(t.icon, 24)), el('b', { text: t.name }), el('small', { text: t.desc })
     ])));
     $('#home-close').hidden = !!first && !app;
     if (!dlg.open) dlg.showModal();
@@ -944,7 +1013,7 @@
         const d = new DOMParser().parseFromString(text, 'text/html');
         const s = d.getElementById('monapp-data');
         if (!s) throw new Error('Ce fichier HTML n’a pas été créé avec l’Atelier Appli (données introuvables).');
-        raw = JSON.parse(s.textContent);
+        raw = JSON.parse(s.textContent); delete raw.icons;
       } else raw = JSON.parse(text);
       const a = normalizeApp(raw);
       a.id = uid();
@@ -964,6 +1033,8 @@
   }
 
   /* ------------------------------------------------------------------ branchements */
+  // Pictogrammes des boutons déclarés dans le HTML par data-icon
+  document.querySelectorAll('[data-icon]').forEach((n) => { n.insertBefore(icon(n.dataset.icon, +n.dataset.size || 16), n.firstChild); if (!n.title && n.textContent.trim()) n.title = n.textContent.trim(); });
   $('#btn-add-block').addEventListener('click', openAddBlock);
   $('#btn-add-page').addEventListener('click', addPage);
   $('#btn-undo').addEventListener('click', () => { snapshot(); restore(hi - 1); });
@@ -975,7 +1046,7 @@
   $('#exp-go').addEventListener('click', doExport);
   $('#home-import').addEventListener('click', () => $('#file-import').click());
   $('#file-import').addEventListener('change', (e) => { const f = e.target.files[0]; e.target.value = ''; if (f) importFile(f); });
-  document.querySelectorAll('[data-close]').forEach((b) => b.addEventListener('click', () => b.closest('dialog').close()));
+  document.querySelectorAll('dialog.modal [data-close]').forEach((b) => b.addEventListener('click', () => b.closest('dialog').close()));
   document.querySelectorAll('[data-device]').forEach((b) => b.addEventListener('click', () => {
     document.querySelectorAll('[data-device]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
     $('#preview-box').dataset.device = b.dataset.device;
@@ -993,7 +1064,7 @@
   });
   window.addEventListener('beforeunload', (e) => { if (dirtyFile) { e.preventDefault(); e.returnValue = ''; } });
 
-  sortable($('#blocks'), 'article.blk', '.handle', (from, to) => moveBlock(currentPage(), from, to));
+  sortable($('#blocks'), 'article.blk', '.grip', (from, to) => moveBlock(currentPage(), from, to));
 
   /* ------------------------------------------------------------------ démarrage */
   (async function init() {
@@ -1002,7 +1073,7 @@
     try { const last = mem('atelier:last'); if (last) rec = await DB.get(last); } catch (e) { /* ignore */ }
     if (rec && rec.data) { loadApp(rec.data); }
     else {
-      app = window.MONAPP_TEMPLATES[3].make(); app = normalizeApp(app);
+      app = normalizeApp(window.MONAPP_TEMPLATES[3].make());
       view.pageId = app.pages[0].id; snapshot(); renderAll();
       openHome(true);
     }

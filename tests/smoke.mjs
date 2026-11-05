@@ -35,9 +35,9 @@ console.log('1. Démarrage');
 await page.goto(`http://localhost:${port}/`);
 await page.waitForSelector('#dlg-home[open]');
 ok(await page.locator('.tpl').count() === 4, '4 modèles proposés au premier lancement');
-await page.click('.tpl:has-text("Centre de formation")');
+await page.click('.tpl:has-text("Livret d’accueil")');
 await page.waitForSelector('.blk');
-ok(await page.locator('#pages-list li').count() === 5, '5 pages dans le modèle « Centre de formation »');
+ok(await page.locator('#pages-list li').count() === 5, '5 pages dans le modèle « Livret d’accueil »');
 
 console.log('2. Aperçu');
 const fr = page.frameLocator('#preview');
@@ -48,12 +48,41 @@ await fr.locator('.ma-ev').first().waitFor();
 ok(await fr.locator('.ma-ev').count() === 3, 'navigation par onglets + agenda (3 dates)');
 await page.screenshot({ path: path.join(out, '1-constructeur.png') });
 
+console.log('2b. Refonte : disposition et identité CRFPE');
+const posList = await page.locator('#pages-list').boundingBox(), posAdd = await page.locator('#btn-add-block').boundingBox(), posLeft = await page.locator('.col-left').boundingBox();
+ok(posAdd.y > posList.y + posList.height && posAdd.x >= posLeft.x && posAdd.x + posAdd.width <= posLeft.x + posLeft.width, '« Ajouter un bloc » est dans la colonne de gauche, sous la liste des pages');
+ok(await page.locator('#blocks ~ #btn-add-block, .col-mid #btn-add-block').count() === 0, 'plus de bouton « Ajouter un bloc » en bas de la page');
+ok(await page.locator('.col-left :text("Apparence"), .col-left :text("Informations générales")').count() === 0, 'Apparence et Informations générales ne sont plus dans la colonne de gauche');
+ok((await page.locator('#btn-config').textContent()).includes('Configuration'), 'bouton « Configuration » dans le bandeau supérieur');
+await page.click('#btn-config');
+await page.waitForSelector('#dlg-config[open]');
+ok(await page.locator('#dlg-config [role=tab]').count() === 2 && (await page.locator('#dlg-config [role=tab]').allTextContents()).join('|').includes('Apparence') && (await page.locator('#dlg-config [role=tab]').allTextContents()).join('|').includes('Informations générales'), 'la fenêtre contient les onglets Apparence et Informations générales');
+const cfgBox = await page.locator('#dlg-config').boundingBox(), prevBox = await page.locator('#preview').boundingBox();
+ok(cfgBox.x + cfgBox.width <= prevBox.x + 4, 'la fenêtre Configuration ne masque pas l’aperçu');
+await page.click('.team:has-text("EJE")');
+await page.waitForTimeout(300);
+const teamVar = await fr.locator('html').evaluate((h) => getComputedStyle(h).getPropertyValue('--c-team').trim());
+ok(teamVar === '#6cc067', 'palette EJE appliquée en direct dans l’aperçu (' + teamVar + ')');
+await page.click('[role=tab][data-tab=info]');
+ok(await page.locator('#panel-info:visible').count() === 1, 'onglet Informations générales');
+await page.screenshot({ path: path.join(out, '1b-configuration.png') });
+await page.click('#cfg-done');
+ok(await page.locator('#dlg-config[open]').count() === 0, 'la fenêtre se ferme avec « Terminer »');
+await page.click('.team >> nth=0').catch(() => {});
+const uiText = await page.evaluate(() => document.body.innerText);
+ok(!/\p{Extended_Pictographic}/u.test(uiText), 'aucun emoji dans l’interface du constructeur');
+const fontOk = await page.evaluate(async () => { await document.fonts.ready; return document.fonts.check('16px Mulish'); });
+ok(fontOk, 'police Mulish chargée localement');
+const barBg = await page.locator('.topbar').evaluate((e) => getComputedStyle(e).backgroundColor);
+ok(barBg === 'rgb(0, 76, 142)', 'bandeau supérieur bleu CRFPE #004C8E');
+ok(await fr.locator('img.ma-logo').count() === 1, 'logo CRFPE dans l’en-tête de l’aperçu');
+
 console.log('3. Édition');
 await page.click('#pages-list .page-btn >> nth=0');
 await page.click('.blk >> nth=0 >> .blk-toggle');
-await page.fill('.blk.open input[type=text] >> nth=0', 'Bienvenue au centre TEST');
+await page.fill('.blk.open input[type=text] >> nth=0', 'Bienvenue au CRFPE TEST');
 await page.waitForTimeout(400);
-ok((await fr.locator('.ma-hero h2').textContent()) === 'Bienvenue au centre TEST', 'l’aperçu se met à jour en direct');
+ok((await fr.locator('.ma-hero h2').textContent()) === 'Bienvenue au CRFPE TEST', 'l’aperçu se met à jour en direct');
 // ajouter un bloc embed (formulaire Tally)
 await page.click('#btn-add-block');
 await page.click('.add-card:has-text("Formulaire")');
@@ -81,6 +110,8 @@ const html = fs.readFileSync(file, 'utf8');
 ok(!/<script[^>]+src=/.test(html) && !/<link[^>]+stylesheet/.test(html), 'aucune ressource externe (script/css)');
 ok(/Content-Security-Policy/.test(html) && /frame-src https:\/\/forms\.office\.com/.test(html), 'CSP avec frame-src limité à forms.office.com');
 ok(/script-src 'sha256-/.test(html), 'CSP : script protégé par empreinte sha256 (pas de unsafe-inline)');
+ok(/font-src data:/.test(html) && /font-family:"Mulish"/.test(html), 'police Mulish embarquée dans le fichier exporté');
+ok(!/\p{Extended_Pictographic}/u.test(html.replace(/"data:image[^"]*"/g, '')), 'aucun emoji dans le fichier exporté');
 console.log('   taille :', (html.length / 1024).toFixed(1), 'Ko');
 
 console.log('5. Appli exportée (ouverte seule, hors constructeur)');
@@ -91,7 +122,7 @@ p2.on('console', (m) => { if (m.type() === 'error' && !/Failed to load resource|
 await p2.setViewportSize({ width: 390, height: 800 });
 await p2.goto('file://' + file);
 await p2.locator('.ma-hero h2').waitFor();
-ok((await p2.locator('.ma-hero h2').textContent()) === 'Bienvenue au centre TEST', 'contenu modifié présent dans l’export');
+ok((await p2.locator('.ma-hero h2').textContent()) === 'Bienvenue au CRFPE TEST', 'contenu modifié présent dans l’export');
 ok(await p2.locator('.ma-tab').count() === 5, '5 onglets');
 await p2.locator('.ma-tab', { hasText: 'Formations' }).click();
 await p2.locator('.ma-cards-grille .ma-card').first().waitFor();
@@ -133,15 +164,15 @@ ok(await p4.locator('a[href^="data:"]').count() === 0, 'lien data: refusé');
 
 console.log('7. Réimport du HTML exporté');
 await p3.setInputFiles('#file-import', file);
-await p3.waitForFunction(() => window.__atelier.app.title === 'Centre de formation Horizon');
-ok((await p3.evaluate(() => window.__atelier.app.title)) === 'Centre de formation Horizon', 'projet rouvert depuis le .html exporté');
+await p3.waitForFunction(() => window.__atelier.app.title === 'CRFPE');
+ok((await p3.evaluate(() => window.__atelier.app.title)) === 'CRFPE', 'projet rouvert depuis le .html exporté');
 
 console.log('8. Persistance (rechargement)');
 await page.waitForTimeout(900);
 await page.reload();
 await page.waitForSelector('.blk', { timeout: 5000 }).catch(() => {});
 const title = await page.evaluate(() => window.__atelier && window.__atelier.app && window.__atelier.app.pages[0].blocks[0].title);
-ok(title === 'Bienvenue au centre TEST', 'l’appli est restaurée après rechargement');
+ok(title === 'Bienvenue au CRFPE TEST', 'l’appli est restaurée après rechargement');
 
 console.log('8b. Les 4 modèles + mode sombre s’exportent et s’affichent sans erreur');
 for (const [i, key] of ['centre', 'portes-ouvertes', 'parcours', 'vierge'].entries()) {

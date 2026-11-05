@@ -1,11 +1,12 @@
 # Atelier Appli
 
-Créez une petite appli web pour votre établissement ou votre centre de formation **sans coder**, puis téléchargez-la en **un seul fichier HTML autonome** à héberger où vous voulez.
+Créez une petite appli web pour votre équipe, votre formation ou votre centre **sans coder**, puis téléchargez-la en **un seul fichier HTML autonome** à héberger où vous voulez.
 
 - **Pas de cloud** : tout se passe dans votre navigateur. Aucune requête réseau (le constructeur l'interdit via sa politique de sécurité `connect-src 'none'`).
 - **Pas d'IA**, pas de compte, pas de base de données, pas de bibliothèque externe, pas de CDN.
 - **Formulaires** : on intègre ceux que vous utilisez déjà (Tally, Microsoft Forms, Google Forms, Framaforms…). Il n'y a volontairement pas de constructeur de formulaire.
 - **Sauvegarde automatique** dans le navigateur, plus export `.json` / `.html` pour archiver ou partager avec un collègue.
+- **Aux couleurs du CRFPE** : l'interface et les applis exportées suivent le design system « CRFPE » (bleu #004C8E, cyan #41C8F4, police Mulish, pictogrammes pleins du jeu CRFPE, aucun emoji, logo détaché par un filet blanc). Voir [DESIGN.md](DESIGN.md).
 
 ## Utiliser
 
@@ -17,9 +18,9 @@ python3 -m http.server 8000      # puis ouvrir http://localhost:8000/
 
 …ou simplement **double-cliquer sur `index.html`**. Pour le proposer à vos collègues, déposez tout le dossier sur n'importe quel hébergement statique (intranet, OVH, GitHub Pages, Netlify…).
 
-1. Choisissez un **modèle** (centre de formation, portes ouvertes, jeu de piste, vierge).
-2. Ajoutez des **pages** et des **blocs** ; réordonnez-les par glisser-déposer ou avec les flèches. L'**aperçu** à droite est celui du fichier final.
-3. Réglez l'**apparence** (6 palettes ou vos couleurs, mode sombre, coins, police).
+1. Choisissez un **modèle** (livret d'accueil, portes ouvertes, jeu de piste, vierge).
+2. Dans la colonne de gauche, gérez les **pages**, puis cliquez sur **Ajouter un bloc** (juste dessous) pour composer la page sélectionnée ; réordonnez par glisser-déposer ou avec les flèches. L'**aperçu** à droite est celui du fichier final.
+3. Ouvrez **Configuration** (bandeau supérieur) : fenêtre flottante qui laisse l'aperçu visible. Onglet **Apparence** : équipe CRFPE (Institutionnel, EJE, Formation Continue, Espace Sésame) ou couleur libre, mode sombre. Onglet **Informations générales** : nom, sous-titre, logo (celui du CRFPE par défaut), langue.
 4. **Télécharger l'appli (.html)** puis déposez `index.html` sur votre serveur.
 
 ### Les blocs
@@ -58,17 +59,23 @@ Le fichier est autonome. Il suffit de le déposer sur un serveur web, de préfé
 
 ```
 index.html            le constructeur
-css/builder.css       son apparence
+css/builder.css       son apparence (charte CRFPE)
 js/runtime.js         moteur d'affichage : utilisé par l'aperçu ET recopié dans le fichier exporté
 js/runtime-css.js     styles de l'appli exportée (dans une chaîne, pour l'injecter dans l'export)
-js/builder.js         éditeur : blocs, pages, thème, sauvegarde (IndexedDB), import/export
+js/builder.js         éditeur : blocs, pages, configuration, sauvegarde (IndexedDB), import/export
 js/templates.js       modèles d'appli (contenus fictifs)
+js/icons.js           58 pictogrammes du design system CRFPE (données, rendus en DOM)
+js/logo-data.js       logo CRFPE (RVB, 192 px) embarqué
+js/font-data.js       Mulish (latin) encodée, intégrée aux fichiers exportés
+fonts/                Mulish et Barlow (SIL OFL), voir fonts/LICENCES.md
+img/                  logo et favicon CRFPE
+PRODUCT.md, DESIGN.md contexte produit et système visuel (référence pour tout futur travail de design)
 tests/smoke.mjs       test de bout en bout (Playwright)
 ```
 
 **Pourquoi `runtime.js` est une fonction autonome ?** Elle est copiée telle quelle (`Function.prototype.toString`) dans le HTML exporté : l'aperçu et le résultat final utilisent donc exactement le même code. Elle ne doit dépendre de rien d'extérieur.
 
-**Une appli = un document JSON** (pages, blocs, images en base64) embarqué dans le HTML exporté (`<script type="application/json" id="monapp-data">`). Ce même fichier peut être rouvert dans l'Atelier pour être modifié.
+**Une appli = un document JSON** (pages, blocs, images en base64, pictogrammes utilisés) embarqué dans le HTML exporté (`<script type="application/json" id="monapp-data">`). Ce même fichier peut être rouvert dans l'Atelier pour être modifié.
 
 ### Ajouter un type de bloc
 
@@ -81,14 +88,15 @@ tests/smoke.mjs       test de bout en bout (Playwright)
 - Le moteur construit le DOM par `createElement` / `textContent` : **aucun `innerHTML`, aucun `eval`**. Le HTML saisi dans un texte reste du texte.
 - Chaque lien passe par `safeUrl()` : seuls `http(s)`, `mailto`, `tel` et les chemins relatifs sont acceptés (`javascript:` et `data:` refusés). Les images doivent être `png/jpeg/webp/gif` (SVG refusé).
 - Les cadres intégrés sont en `https` uniquement et « sandboxés ».
-- Le fichier exporté contient une **Content-Security-Policy** stricte : script et style protégés par empreinte SHA-256 (pas de `unsafe-inline`), `frame-src` limité aux seuls services réellement utilisés dans l'appli, `connect-src 'none'`.
+- Le fichier exporté contient une **Content-Security-Policy** stricte : script et style protégés par empreinte SHA-256 (pas de `unsafe-inline`), police embarquée (`font-src data:`), `frame-src` limité aux seuls services réellement utilisés dans l'appli, `connect-src 'none'`.
+- Les pictogrammes sont des données (chemins SVG validés), construites nœud par nœud : aucun SVG n'est injecté en HTML.
 - Le test `tests/smoke.mjs` vérifie ces points avec un contenu volontairement hostile.
 
 ⚠️ Une appli publiée est lisible par toute personne qui connaît son adresse : n'y mettez **aucune donnée personnelle**.
 
 ## Accessibilité
 
-Navigation clavier complète (tout se fait aussi avec les boutons ↑ ↓ en plus du glisser-déposer), lien d'évitement, titres structurés, `aria-current` sur l'onglet actif, descriptions d'images, contraste du texte sur la couleur principale et des liens recalculé automatiquement (≥ 4,5:1 quelle que soit la couleur choisie), `prefers-reduced-motion` respecté.
+Navigation clavier complète (tout se fait aussi avec les boutons ↑ ↓ en plus du glisser-déposer), lien d'évitement, titres structurés, `aria-current` sur l'onglet actif, descriptions d'images, contraste du texte sur la couleur principale, des liens et des boutons recalculé automatiquement (≥ 4,5:1 quelle que soit la couleur choisie), `prefers-reduced-motion` respecté.
 
 ## Tests
 
@@ -96,6 +104,12 @@ Navigation clavier complète (tout se fait aussi avec les boutons ↑ ↓ en plu
 npm install          # Playwright (une seule dépendance de développement)
 npm test
 ```
+
+## Notes sur le design system CRFPE
+
+- Dans les fichiers sources du design system, `chevron-down.svg` dessine un pouce levé et `chevron-up.svg` une chevron vers le bas : les noms sont corrigés dans `js/icons.js` (`thumbs-up`, `chevron-down`).
+- La couleur de texte atténué du design system (#58889E) ne passe pas le contraste 4,5:1 sur fond blanc ; l'Atelier utilise #566074 pour le texte secondaire.
+- Le mode sombre est une variante ajoutée par l'Atelier : elle ne vient pas de la charte.
 
 ## Inspiration et licence
 
@@ -106,6 +120,7 @@ Choisissez la licence de votre choix avant de diffuser ce dépôt à des collèg
 ## Pistes d'évolution
 
 - Génération d'un QR code et d'une affiche A4 à partir de l'adresse finale.
+- Polices sous licence (Bliss Pro, DIN) à la place de Mulish et Barlow, si le CRFPE les fournit.
 - Installation sur l'écran d'accueil du téléphone (manifeste + service worker, nécessite un fichier d'icône à côté).
 - Recadrage des images.
 - Blocs supplémentaires : tableau, accordéon de documents, galerie.

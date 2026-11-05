@@ -1,3 +1,5 @@
+.DS_Store
+.impeccable/mocks/
+.impeccable/review/
 node_modules/
 tests/out/
-.DS_Store

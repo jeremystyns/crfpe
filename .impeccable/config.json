@@ -1,0 +1,35 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "border-accent-on-rounded",
+        "value": "*",
+        "files": [
+          "js/runtime-css.js"
+        ],
+        "createdAt": "2026-11-05T22:03:38.160Z",
+        "reason": "Design system CRFPE (README, section Cartes et Tabs) prescrit le filet d'accent haut de 4 px et le trait cyan de 3 px; non confirmé séparément par l'utilisateur"
+      },
+      {
+        "rule": "border-accent-on-rounded",
+        "value": "*",
+        "files": [
+          "css/builder.css"
+        ],
+        "createdAt": "2026-11-05T22:03:38.176Z",
+        "reason": "Design system CRFPE (README, section Cartes et Tabs) prescrit le filet d'accent haut de 4 px et le trait cyan de 3 px; non confirmé séparément par l'utilisateur"
+      },
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "css/builder.css"
+        ],
+        "createdAt": "2026-11-05T22:03:38.195Z",
+        "reason": "Design system CRFPE (README, section Cartes et Tabs) prescrit le filet d'accent haut de 4 px et le trait cyan de 3 px; non confirmé séparément par l'utilisateur (bloc ouvert, filet supérieur)"
+      }
+    ]
+  }
+}

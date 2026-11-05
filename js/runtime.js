@@ -7,7 +7,10 @@
 
    Elle doit donc rester AUTONOME : aucune variable externe, aucune dépendance.
    Règles de sécurité : jamais de innerHTML / eval ; tout passe par createElement
-   + textContent ; chaque URL passe par safeUrl() ; chaque iframe est « sandboxée ».
+   (et createElementNS pour les icônes) + textContent ; chaque URL passe par safeUrl() ;
+   chaque iframe est « sandboxée ».
+
+   Les pictogrammes (jeu CRFPE) arrivent dans app.icons = { nom: { v, p:[[transform, d], …] } }.
    ============================================================================ */
 window.MonAppRuntime = function (root, initial, opts) {
   'use strict';
@@ -44,6 +47,29 @@ window.MonAppRuntime = function (root, initial, opts) {
     });
   }
 
+  /* Pictogramme CRFPE : SVG construit nœud par nœud (jamais de innerHTML). */
+  var NS = 'http://www.w3.org/2000/svg';
+  function ico(name, size) {
+    var def = app && app.icons && app.icons[name];
+    var s = doc.createElementNS(NS, 'svg');
+    s.setAttribute('class', 'ma-svg');
+    s.setAttribute('width', String(size || 20));
+    s.setAttribute('height', String(size || 20));
+    s.setAttribute('aria-hidden', 'true');
+    s.setAttribute('focusable', 'false');
+    if (!def || !+def.v) return s;
+    s.setAttribute('viewBox', '0 0 ' + (+def.v) + ' ' + (+def.v));
+    arr(def.p).forEach(function (p) {
+      var t = S(p[0]), d = S(p[1]);
+      if (!/^[a-z]+\([\d\s.,\-]*\)(\s*[a-z]+\([\d\s.,\-]*\))*$/i.test(t) || !/^[MmLlHhVvCcSsQqTtAaZz\d\s.,eE+\-]*$/.test(d)) return;
+      var g = doc.createElementNS(NS, 'g'); g.setAttribute('transform', t);
+      var path = doc.createElementNS(NS, 'path'); path.setAttribute('d', d);
+      g.appendChild(path); s.appendChild(g);
+    });
+    return s;
+  }
+  var FIXED_ICONS = ['info-circle', 'exclamation-circle', 'check-circle', 'bullhorn', 'map-marker', 'phone', 'envelope', 'clock', 'link', 'file-text', 'chevron-right', 'arrow-left', 'calendar', 'file'];
+
   /* URL « sûre » : http(s), mailto, tel, ou chemin relatif (ex. documents/reglement.pdf).
      Tout autre schéma (javascript:, data:, vbscript:…) est refusé. */
   function safeUrl(u) {
@@ -62,47 +88,63 @@ window.MonAppRuntime = function (root, initial, opts) {
     return s && !/^(mailto|tel):/i.test(s) ? s : null;
   }
 
-  /* ------------------------------------------------------------------ couleurs */
+  /* ------------------------------------------------------------------ couleurs et palettes d'équipe (charte CRFPE) */
   function rgb(h) { h = h.replace('#', ''); return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; }
   function hex(a) { return '#' + a.map(function (x) { x = Math.max(0, Math.min(255, Math.round(x))); return (x < 16 ? '0' : '') + x.toString(16); }).join(''); }
   function mix(a, b, t) { var x = rgb(a), y = rgb(b); return hex([0, 1, 2].map(function (i) { return x[i] * (1 - t) + y[i] * t; })); }
   function lum(h) { var c = rgb(h).map(function (v) { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }); return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; }
   function contrast(a, b) { var l1 = lum(a), l2 = lum(b); return (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05); }
   /* Rapproche une couleur du noir (ou du blanc) jusqu'à un contraste lisible (4,5:1). */
-  function readable(color, bg, dark) {
+  function readable(color, bg, toWhite) {
     var c = color, i = 0;
-    while (contrast(c, bg) < 4.5 && i < 12) { c = mix(c, dark ? '#ffffff' : '#000000', 0.12); i++; }
+    while (contrast(c, bg) < 4.5 && i < 14) { c = mix(c, toWhite ? '#ffffff' : '#000000', 0.12); i++; }
     return c;
   }
+  /* Texte posé sur une couleur : blanc ou presque noir, selon le meilleur contraste. */
+  function onColor(bg) { return contrast(bg, '#ffffff') >= contrast(bg, '#0b1f33') ? '#ffffff' : '#0b1f33'; }
 
-  var FONTS = {
-    moderne: 'system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif',
-    classique: 'Georgia,"Iowan Old Style","Palatino Linotype",Palatino,serif',
-    arrondi: 'ui-rounded,"SF Pro Rounded","Hiragino Maru Gothic ProN",Quicksand,"Segoe UI",system-ui,sans-serif'
+  /* Palettes d'équipe : socle bleu/cyan commun ; filet, étiquettes et demi-lentille changent. */
+  var TEAMS = {
+    instit: { name: 'Institutionnel', team: '#58889e', soft: '#b7ddff', lens: '#41c8f4' },
+    eje: { name: 'EJE', team: '#6cc067', soft: '#e6efc1', lens: '#b9d774' },
+    fc: { name: 'Formation Continue', team: '#c00000', soft: '#f3a59f', lens: '#ed9977' },
+    sesame: { name: 'Espace Sésame', team: '#dc8319', soft: '#ffe4af', lens: '#f99d1d' }
   };
-  var RADII = { carre: '4px', doux: '14px', rond: '24px' };
+  var FONT = '"Mulish","Bliss Pro","Trebuchet MS",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif';
 
   function themeVars(t) {
     t = t || {};
-    var primary = isHex(t.primary) ? t.primary : '#2563eb';
-    var accent = isHex(t.accent) ? t.accent : '#f59e0b';
+    var primary = isHex(t.primary) ? t.primary : '#004c8e';
+    var accent = isHex(t.accent) ? t.accent : '#41c8f4';
     var dark = !!t.dark;
-    var bg = dark ? '#0f1420' : mix(primary, '#ffffff', 0.955);
-    var surface = dark ? '#182032' : '#ffffff';
-    var text = dark ? '#e8ecf5' : '#1c2333';
-    var muted = dark ? '#a3aec6' : '#566074';
-    return {
+    var tm = TEAMS[t.team];
+    var team = tm ? tm.team : accent, soft = tm ? tm.soft : mix(accent, '#ffffff', 0.78), lens = tm ? tm.lens : accent;
+    var surface = dark ? '#13233a' : '#ffffff';
+    var bg = dark ? '#0c1626' : '#f2f4f7';
+    var text = dark ? '#e6ecf4' : '#2f3342';
+    var head = dark ? mix(primary, '#000000', 0.4) : primary;
+    var btn = dark ? accent : primary;
+    var link = readable(dark ? accent : primary, surface, dark);
+    var title = dark ? '#f2f6fb' : readable(primary, surface, false);
+    var v = {
       '--c-primary': primary,
-      '--c-on-primary': contrast(primary, '#ffffff') >= contrast(primary, '#111827') ? '#ffffff' : '#111827',
-      '--c-accent': dark ? mix(accent, '#ffffff', 0.15) : readable(accent, '#ffffff', false) === accent ? accent : mix(accent, '#000000', 0.25),
-      '--c-bg': bg, '--c-surface': surface, '--c-text': text, '--c-muted': muted,
-      '--c-border': dark ? '#2b3753' : mix(primary, '#ffffff', 0.86),
-      '--c-link': readable(primary, surface, dark),
-      '--c-soft': dark ? mix(primary, '#182032', 0.78) : mix(primary, '#ffffff', 0.9),
-      '--c-grad2': mix(primary, dark ? '#000000' : accent, dark ? 0.45 : 0.55),
-      '--radius': RADII[t.radius] || RADII.doux,
-      '--font': FONTS[t.font] || FONTS.moderne
+      '--c-head': head, '--c-on-head': onColor(head),
+      '--c-hero': head, '--c-on-hero': onColor(head), '--c-lens': lens, '--c-lens-o': (!tm || t.team === 'instit') ? '.55' : '.92',
+      '--c-btn': btn, '--c-on-btn': onColor(btn), '--c-btn-hover': mix(btn, dark ? '#ffffff' : '#000000', dark ? 0.15 : 0.22),
+      '--c-accent': accent, '--c-on-accent': onColor(accent), '--c-accent-hover': mix(accent, dark ? '#ffffff' : '#000000', dark ? 0.15 : 0.12),
+      '--c-bg': bg, '--c-surface': surface, '--c-text': text, '--c-muted': dark ? '#a5b3c7' : '#566074',
+      '--c-border': dark ? '#263b57' : 'rgba(0,0,0,.12)',
+      '--c-link': link, '--c-link-hover': dark ? mix(link, '#ffffff', 0.2) : '#00799f', '--c-title': title,
+      '--c-soft': dark ? mix(primary, surface, 0.7) : mix(primary, '#ffffff', 0.9),
+      '--c-team': team, '--c-team-soft': dark ? mix(team, surface, 0.7) : soft, '--c-on-soft': dark ? '#e6ecf4' : '#2f3342',
+      '--c-focus': '#00b0f0',
+      '--font': FONT
     };
+    var tones = dark
+      ? { info: ['#14304f', '#2b5a8a', '#7cc8f0'], warn: ['#3a2c12', '#7a5a1d', '#f0b55a'], ok: ['#16331f', '#2f6a3c', '#7fd08a'], alert: ['#3a1a1a', '#8a3030', '#f08a82'] }
+      : { info: ['#e8f4fc', '#b7ddff', '#004c8e'], warn: ['#fff4dc', '#ffe4af', '#8a4b00'], ok: ['#eaf5e9', '#c0e1bf', '#2b6e27'], alert: ['#fbe9e7', '#f3a59f', '#a00000'] };
+    for (var k in tones) { v['--t-' + k + '-bg'] = tones[k][0]; v['--t-' + k + '-b'] = tones[k][1]; v['--t-' + k + '-i'] = tones[k][2]; }
+    return v;
   }
 
   /* ------------------------------------------------------------------ analyse des liens (partagé avec le constructeur) */
@@ -203,8 +245,16 @@ window.MonAppRuntime = function (root, initial, opts) {
     return Object.keys(out);
   }
 
+  /* Noms des pictogrammes dont l'appli a besoin (pour n'embarquer que ceux-là dans l'export) */
+  function iconNames(a) {
+    var n = {};
+    FIXED_ICONS.forEach(function (k) { n[k] = 1; });
+    arr(a && a.pages).forEach(function (p) { if (p.icon) n[p.icon] = 1; });
+    return Object.keys(n);
+  }
+
   if (opts.helpersOnly) {
-    return { safeUrl: safeUrl, embedInfo: embedInfo, videoInfo: videoInfo, mapInfo: mapInfo, parseIframe: parseIframe, frameOrigins: frameOrigins, themeVars: themeVars, contrast: contrast };
+    return { safeUrl: safeUrl, embedInfo: embedInfo, videoInfo: videoInfo, mapInfo: mapInfo, parseIframe: parseIframe, frameOrigins: frameOrigins, iconNames: iconNames, themeVars: themeVars, contrast: contrast, TEAMS: TEAMS };
   }
 
   /* ------------------------------------------------------------------ texte enrichi (mini-Markdown sûr) */
@@ -291,14 +341,18 @@ window.MonAppRuntime = function (root, initial, opts) {
     });
     return el('div', { class: 'ma-frame' + (ratio ? ' ma-ratio' : '') }, f);
   }
-  function warn(msg) { return opts.preview ? el('p', { class: 'ma-warn', text: '⚠ ' + msg }) : null; }
+  function warn(msg) { return opts.preview ? el('p', { class: 'ma-warn', text: 'Attention : ' + msg }) : null; }
 
   var R = {
     hero: function (b) {
       var img = imgSrc(b.image);
-      var s = el('div', { class: 'ma-hero ' + (img ? 'ma-has-img' : 'ma-no-img') });
-      if (img) s.style.backgroundImage = 'linear-gradient(0deg,rgba(0,0,0,0),rgba(0,0,0,0)),url("' + img.replace(/["\\\n]/g, encodeURIComponent) + '")';
-      add(s, [el('h2', { text: S(b.title) }), b.text ? el('p', { text: S(b.text) }) : null]);
+      var s = el('div', { class: 'ma-hero' });
+      if (img) {
+        var im = el('div', { class: 'ma-hero-img', 'aria-hidden': 'true' });
+        im.style.backgroundImage = 'url("' + img.replace(/["\\\n]/g, encodeURIComponent) + '")';
+        s.appendChild(im);
+      }
+      add(s, el('div', { class: 'ma-hero-body' }, [el('h2', { text: S(b.title) }), b.text ? el('p', { text: S(b.text) }) : null]));
       return s;
     },
     title: function (b) {
@@ -307,7 +361,7 @@ window.MonAppRuntime = function (root, initial, opts) {
     text: function (b) { return rich(b.text); },
     image: function (b) {
       var src = imgSrc(b.src);
-      if (!src) return warn('Image manquante.');
+      if (!src) return warn('image manquante.');
       var f = el('figure', { class: 'ma-fig' + (b.size === 'medium' ? ' ma-medium' : '') });
       add(f, [el('img', { src: src, alt: S(b.alt), loading: 'lazy' }), b.caption ? el('figcaption', { text: S(b.caption) }) : null]);
       return f;
@@ -318,17 +372,16 @@ window.MonAppRuntime = function (root, initial, opts) {
       else if (b.kind === 'mail' && b.mail) href = 'mailto:' + S(b.mail).trim();
       else if (b.kind === 'tel' && b.tel) href = 'tel:' + S(b.tel).replace(/[^\d+]/g, '');
       else if (b.kind === 'url') href = safeUrl(b.url);
-      if (!href) return warn('Bouton « ' + S(b.label) + ' » : destination manquante.');
-      var cls = 'ma-btn' + (b.style === 'outline' ? ' ma-outline' : '') + (b.width === 'auto' ? '' : ' ma-full');
-      var a = link(href, S(b.label) || 'Bouton', cls);
-      return a;
+      if (!href) return warn('bouton « ' + S(b.label) + ' » : destination manquante.');
+      var cls = 'ma-btn' + (b.style === 'outline' ? ' ma-outline' : '') + (b.style === 'accent' ? ' ma-accent' : '') + (b.width === 'auto' ? '' : ' ma-full');
+      return link(href, S(b.label) || 'Bouton', cls);
     },
     callout: function (b) {
-      var icons = { info: 'ℹ️', warn: '⚠️', ok: '✅', alert: '🚨' };
+      var icons = { info: 'info-circle', warn: 'exclamation-circle', ok: 'check-circle', alert: 'bullhorn' };
       var tone = icons[b.tone] ? b.tone : 'info';
       var d = el('div', { class: 'ma-callout ma-tone-' + tone, role: tone === 'alert' ? 'alert' : null });
-      add(d, [el('span', { class: 'ma-ico', 'aria-hidden': 'true', text: icons[tone] }),
-        el('div', null, [b.title ? el('strong', { text: S(b.title) }) : null, rich(b.text)])]);
+      add(d, [el('span', { class: 'ma-ico' }, ico(icons[tone], 24)),
+        el('div', null, [b.title ? el('strong', { class: 'ma-callout-t', text: S(b.title) }) : null, rich(b.text)])]);
       return d;
     },
     cards: function (b) {
@@ -355,7 +408,7 @@ window.MonAppRuntime = function (root, initial, opts) {
       var ul = el('ul', { class: 'ma-events' });
       list.forEach(function (x) {
         var meta = [x.d.toLocaleDateString(lang(), { weekday: 'long', day: 'numeric', month: 'long' }), S(x.e.time), S(x.e.place)].filter(Boolean).join(' · ');
-        var add1 = b.calendar !== false ? el('button', { type: 'button', class: 'ma-ev-add', text: '📅 Ajouter à mon agenda', onclick: function () { downloadIcs(x.e); } }) : null;
+        var add1 = b.calendar !== false ? el('button', { type: 'button', class: 'ma-ev-add', onclick: function () { downloadIcs(x.e); } }, [ico('calendar', 16), 'Ajouter à mon agenda']) : null;
         ul.appendChild(el('li', { class: 'ma-ev' }, [
           el('div', { class: 'ma-date', 'aria-hidden': 'true' }, [el('b', { text: String(x.d.getDate()) }), el('span', { text: x.d.toLocaleDateString(lang(), { month: 'short' }).replace('.', '') })]),
           el('div', null, [el('h3', { text: S(x.e.title) }), el('p', { class: 'ma-ev-m', text: meta }), x.e.text ? el('p', { class: 'ma-ev-x', text: S(x.e.text) }) : null, add1])
@@ -372,31 +425,35 @@ window.MonAppRuntime = function (root, initial, opts) {
     },
     contact: function (b) {
       var dl = el('dl'), rows = 0;
-      function row(label, content) { if (!content) return; rows++; dl.appendChild(el('dt', { text: label })); dl.appendChild(el('dd', null, content)); }
-      row('📍', b.address ? S(b.address) : null);
-      row('📞', b.phone ? link('tel:' + S(b.phone).replace(/[^\d+]/g, ''), S(b.phone)) : null);
-      row('✉️', b.email ? link('mailto:' + S(b.email).trim(), S(b.email)) : null);
-      row('🕒', b.hours ? S(b.hours) : null);
+      function row(icon, label, content) {
+        if (!content) return; rows++;
+        dl.appendChild(el('dt', { 'aria-label': label }, ico(icon, 20)));
+        dl.appendChild(el('dd', null, content));
+      }
+      row('map-marker', 'Adresse', b.address ? S(b.address) : null);
+      row('phone', 'Téléphone', b.phone ? link('tel:' + S(b.phone).replace(/[^\d+]/g, ''), S(b.phone)) : null);
+      row('envelope', 'Courriel', b.email ? link('mailto:' + S(b.email).trim(), S(b.email)) : null);
+      row('clock', 'Horaires', b.hours ? S(b.hours) : null);
       var w = safeUrl(b.website);
-      row('🌐', w ? link(w, S(b.website).replace(/^https?:\/\//, '')) : null);
+      row('link', 'Site web', w ? link(w, S(b.website).replace(/^https?:\/\//, '')) : null);
       return el('section', { class: 'ma-contact' }, [b.org ? el('h3', { text: S(b.org) }) : null, rows ? dl : null]);
     },
     map: function (b) {
       var m = mapInfo(b.where);
-      if (!m) return warn('Carte : collez un lien OpenStreetMap, un lien Google Maps ou des coordonnées (ex. 48.8584, 2.2945).');
+      if (!m) return warn('carte : collez un lien OpenStreetMap, un lien Google Maps ou des coordonnées (ex. 48.8584, 2.2945).');
       var wrap = el('div');
-      add(wrap, [frame(m.src, b.label || 'Plan d’accès', 300, false), el('p', { class: 'ma-sub' }, [link(m.open, '🗺️ ' + (S(b.label) || 'Ouvrir la carte') + ' (grande carte)')])]);
+      add(wrap, [frame(m.src, b.label || 'Plan d’accès', 300, false), el('p', { class: 'ma-sub' }, [link(m.open, [ico('map-marker', 18), (S(b.label) || 'Ouvrir la carte') + ' (grande carte)'])])]);
       return wrap;
     },
     video: function (b) {
       var v = videoInfo(b.url);
-      if (!v) return warn('Vidéo : adresse non reconnue (YouTube, Vimeo, Dailymotion, PeerTube ou fichier .mp4).');
+      if (!v) return warn('vidéo : adresse non reconnue (YouTube, Vimeo, Dailymotion, PeerTube ou fichier .mp4).');
       if (v.file) return el('div', { class: 'ma-frame' }, el('video', { src: v.file, controls: true, preload: 'metadata', 'aria-label': S(b.title) || 'Vidéo' }));
       return frame(v.src, b.title || 'Vidéo', 0, true);
     },
     embed: function (b) {
       var i = embedInfo(b.url);
-      if (!i) return warn('Contenu intégré : collez une adresse https:// ou le code « <iframe …> » fourni par le service.');
+      if (!i) return warn('contenu intégré : collez une adresse https:// ou le code « <iframe …> » fourni par le service.');
       if (b.mode === 'button') return link(i.open, S(b.label) || 'Ouvrir', 'ma-btn ma-full');
       var wrap = el('div');
       add(wrap, [frame(i.src, b.title || i.service, parseInt(b.height, 10) || i.height || 700, false),
@@ -409,10 +466,11 @@ window.MonAppRuntime = function (root, initial, opts) {
         var href = it.page ? pageHref(it.page) : safeUrl(it.url);
         if (!href) return;
         var file = /\.(pdf|docx?|xlsx?|pptx?|odt|ods|odp|zip)(\?|#|$)/i.test(href);
+        var icon = file ? 'file-text' : (/^mailto:/i.test(href) ? 'envelope' : (/^tel:/i.test(href) ? 'phone' : 'link'));
         var a = link(href, [
-          el('span', { class: 'ma-ico', 'aria-hidden': 'true', text: file ? '📄' : (/^mailto:/i.test(href) ? '✉️' : (/^tel:/i.test(href) ? '📞' : '🔗')) }),
+          el('span', { class: 'ma-ico' }, ico(icon, 22)),
           el('span', null, [el('b', { text: S(it.label) || href }), it.desc ? el('small', { text: S(it.desc) }) : null]),
-          el('span', { class: 'ma-go', 'aria-hidden': 'true', text: '›' })
+          el('span', { class: 'ma-go' }, ico('chevron-right', 16))
         ]);
         ul.appendChild(el('li', null, a));
       });
@@ -420,7 +478,7 @@ window.MonAppRuntime = function (root, initial, opts) {
     },
     countdown: function (b) {
       var d = parseDate(b.date);
-      if (!d) return warn('Compte à rebours : choisissez une date.');
+      if (!d) return warn('compte à rebours : choisissez une date.');
       var n = Math.round((d - today()) / 864e5), big, small;
       if (n > 1) { big = 'J-' + n; small = S(b.label) || 'jours restants'; }
       else if (n === 1) { big = 'Demain'; small = S(b.label); }
@@ -438,7 +496,7 @@ window.MonAppRuntime = function (root, initial, opts) {
     var logo = imgSrc(app.logo);
     var initials = S(app.title).trim().split(/\s+/).slice(0, 2).map(function (w) { return w.charAt(0); }).join('').toUpperCase() || 'A';
     return el('header', { class: 'ma-head' }, [
-      logo ? el('img', { class: 'ma-logo', src: logo, alt: '' }) : el('span', { class: 'ma-logo', 'aria-hidden': 'true', text: initials }),
+      logo ? el('img', { class: 'ma-logo', src: logo, alt: '' }) : el('span', { class: 'ma-logo ma-logo-i', 'aria-hidden': 'true', text: initials }),
       el('div', { class: 'ma-head-t' }, [el('b', { text: S(app.title) || 'Mon appli' }), app.subtitle ? el('small', { text: S(app.subtitle) }) : null])
     ]);
   }
@@ -461,13 +519,13 @@ window.MonAppRuntime = function (root, initial, opts) {
         class: 'ma-back', href: '#/' + home.id, onclick: function (e) {
           if (navCount > 0) { e.preventDefault(); win.history.back(); }
         }
-      }, '← Retour'));
+      }, [ico('arrow-left', 16), 'Retour']));
     }
     if (page.showTitle !== false && S(page.title)) main.appendChild(el('h1', { class: 'ma-page-h', text: S(page.title) }));
     arr(page.blocks).forEach(function (b) {
       var fn = R[b && b.type], node = null;
       if (!fn) return;
-      try { node = fn(b); } catch (e) { node = opts.preview ? el('p', { class: 'ma-warn', text: '⚠ Bloc illisible.' }) : null; }
+      try { node = fn(b); } catch (e) { node = opts.preview ? el('p', { class: 'ma-warn', text: 'Attention : bloc illisible.' }) : null; }
       if (node) main.appendChild(el('section', { class: 'ma-block ma-b-' + b.type, 'data-block': b.id || null }, node));
     });
 
@@ -479,7 +537,7 @@ window.MonAppRuntime = function (root, initial, opts) {
       var nav = el('nav', { class: 'ma-tabs', 'aria-label': 'Navigation principale' });
       tabs.forEach(function (p) {
         nav.appendChild(el('a', { class: 'ma-tab', href: '#/' + p.id, 'aria-current': p === page ? 'page' : null }, [
-          el('span', { 'aria-hidden': 'true', text: S(p.icon) || '•' }), el('div', { text: S(p.title) })
+          ico(p.icon || 'file-text', 22), el('div', { text: S(p.title) })
         ]));
       });
       shell.appendChild(nav);
@@ -515,7 +573,7 @@ window.MonAppRuntime = function (root, initial, opts) {
         render();
         if (e.data.focus) {
           var t = doc.querySelector('[data-block="' + String(e.data.focus).replace(/[^\w-]/g, '') + '"]');
-          if (t && t.scrollIntoView) { t.scrollIntoView({ block: 'center', behavior: 'smooth' }); t.style.outline = '3px solid var(--c-accent)'; t.style.outlineOffset = '4px'; setTimeout(function () { t.style.outline = ''; t.style.outlineOffset = ''; }, 1400); }
+          if (t && t.scrollIntoView) { t.scrollIntoView({ block: 'center', behavior: 'smooth' }); t.style.outline = '2px solid var(--c-focus)'; t.style.outlineOffset = '6px'; setTimeout(function () { t.style.outline = ''; t.style.outlineOffset = ''; }, 1400); }
         }
       }
     });

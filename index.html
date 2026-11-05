@@ -5,43 +5,42 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <!-- Aucune requête réseau possible depuis le constructeur (connect-src 'none') : rien ne quitte votre ordinateur.
        'unsafe-inline' est nécessaire car l'aperçu (iframe srcdoc) hérite de cette politique. -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: blob:; media-src 'self' https: data:; frame-src about: https:; connect-src 'none'; form-action 'none'; base-uri 'none'; object-src 'none'">
-  <title>Atelier Appli</title>
-  <meta name="description" content="Créez une appli pour votre établissement ou votre centre de formation, sans coder, sans cloud, et téléchargez-la en un seul fichier HTML.">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%234f46e5'/%3E%3Cpath d='M18 22h28M18 32h28M18 42h16' stroke='%23fff' stroke-width='5' stroke-linecap='round'/%3E%3C/svg%3E">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: https: blob:; media-src 'self' https: data:; frame-src about: https:; connect-src 'none'; form-action 'none'; base-uri 'none'; object-src 'none'">
+  <title>Atelier Appli · CRFPE</title>
+  <meta name="description" content="Créez une appli pour votre équipe ou votre formation, sans coder, sans cloud, et téléchargez-la en un seul fichier HTML.">
+  <link rel="icon" type="image/png" href="img/favicon-crfpe.png">
   <link rel="stylesheet" href="css/builder.css">
 </head>
 <body>
   <a class="skip" href="#blocks">Aller aux blocs</a>
 
   <header class="topbar">
-    <div class="brand"><span class="brand-mark" aria-hidden="true">▤</span><span>Atelier Appli</span></div>
+    <div class="brand">
+      <img class="brand-logo" src="img/logo-crfpe.png" alt="" width="38" height="38">
+      <div class="brand-text"><span class="brand-sigle">crfpe</span><span class="brand-name">Atelier Appli</span></div>
+    </div>
     <div class="save-status" id="save-status" role="status" aria-live="polite"></div>
     <div class="top-actions">
-      <button type="button" class="btn ghost icon" id="btn-undo" title="Annuler (Ctrl+Z)" aria-label="Annuler" disabled>↶</button>
-      <button type="button" class="btn ghost icon" id="btn-redo" title="Rétablir (Ctrl+Y)" aria-label="Rétablir" disabled>↷</button>
-      <button type="button" class="btn" id="btn-home">Mes applis</button>
-      <button type="button" class="btn" id="btn-save" title="Sauvegarde de travail à conserver ou à partager avec un collègue">Enregistrer le projet</button>
-      <button type="button" class="btn primary" id="btn-export">Télécharger l’appli (.html)</button>
-      <button type="button" class="btn ghost preview-toggle" id="btn-preview-toggle" aria-pressed="false">Aperçu</button>
+      <button type="button" class="tbtn" id="btn-undo" title="Annuler (Ctrl+Z)" disabled>Annuler</button>
+      <button type="button" class="tbtn" id="btn-redo" title="Rétablir (Ctrl+Y)" disabled>Rétablir</button>
+      <span class="tsep" aria-hidden="true"></span>
+      <button type="button" class="tbtn" id="btn-home" data-icon="folder">Mes applis</button>
+      <button type="button" class="tbtn" id="btn-config" data-icon="cog" aria-haspopup="dialog" aria-expanded="false" aria-controls="dlg-config">Configuration</button>
+      <button type="button" class="tbtn" id="btn-save" data-icon="file-text" title="Sauvegarde de travail à conserver ou à partager avec un collègue">Enregistrer le projet</button>
+      <button type="button" class="tbtn accent" id="btn-export" data-icon="download">Télécharger l’appli</button>
+      <button type="button" class="tbtn preview-toggle" id="btn-preview-toggle" aria-pressed="false">Aperçu</button>
     </div>
   </header>
 
   <div class="workspace">
-    <aside class="col col-left" aria-label="Réglages de l’appli">
-      <section class="panel">
+    <aside class="col col-left" aria-label="Pages et blocs">
+      <section class="panel pages-panel">
         <h2>Pages</h2>
         <ul id="pages-list" class="pages-list"></ul>
-        <button type="button" class="btn small wide" id="btn-add-page">+ Ajouter une page</button>
+        <button type="button" class="btn small wide" id="btn-add-page" data-icon="plus">Ajouter une page</button>
       </section>
-      <details class="panel" open>
-        <summary><h2>Apparence</h2></summary>
-        <div id="theme-panel"></div>
-      </details>
-      <details class="panel">
-        <summary><h2>Informations générales</h2></summary>
-        <div id="info-panel"></div>
-      </details>
+      <button type="button" class="btn primary add-block" id="btn-add-block" data-icon="plus" data-size="20">Ajouter un bloc</button>
+      <p class="add-hint">Le bloc est ajouté à la page sélectionnée ci-dessus.</p>
     </aside>
 
     <main class="col col-mid" aria-label="Contenu de la page">
@@ -51,16 +50,15 @@
       </section>
       <h2 class="sr-only">Blocs de la page</h2>
       <div id="blocks" class="blocks"></div>
-      <button type="button" class="btn primary add-block" id="btn-add-block">+ Ajouter un bloc</button>
     </main>
 
     <section class="col col-right" aria-label="Aperçu en direct">
       <div class="preview-bar">
-        <span class="preview-label">Aperçu en direct</span>
+        <h2 class="preview-label">Aperçu en direct</h2>
         <div class="devices" role="group" aria-label="Taille de l’aperçu">
-          <button type="button" class="btn small" data-device="phone" aria-pressed="true">Mobile</button>
-          <button type="button" class="btn small" data-device="tablet" aria-pressed="false">Tablette</button>
-          <button type="button" class="btn small" data-device="desktop" aria-pressed="false">Ordinateur</button>
+          <button type="button" class="seg" data-device="phone" aria-pressed="true">Mobile</button>
+          <button type="button" class="seg" data-device="tablet" aria-pressed="false">Tablette</button>
+          <button type="button" class="seg" data-device="desktop" aria-pressed="false">Ordinateur</button>
         </div>
       </div>
       <div id="preview-box" class="preview-box" data-device="phone">
@@ -71,30 +69,45 @@
   </div>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <input type="file" id="file-import" accept=".json,.html,.htm,application/json,text/html" class="sr-only" tabindex="-1">
+  <input type="file" id="file-import" accept=".json,.html,.htm,application/json,text/html" class="sr-only" tabindex="-1" aria-label="Ouvrir un fichier">
+
+  <!-- Configuration : fenêtre flottante non modale, l'aperçu reste visible et se met à jour en direct -->
+  <dialog id="dlg-config" class="floating" aria-labelledby="cfg-title">
+    <div class="dlg-head">
+      <h2 id="cfg-title">Configuration</h2>
+      <button type="button" class="iconbtn" data-icon="times" data-size="16" id="cfg-close" aria-label="Fermer la configuration"></button>
+    </div>
+    <div class="tabs" role="tablist" aria-label="Rubriques de configuration">
+      <button type="button" role="tab" id="tab-theme" data-tab="theme" aria-selected="true" aria-controls="panel-theme">Apparence</button>
+      <button type="button" role="tab" id="tab-info" data-tab="info" aria-selected="false" aria-controls="panel-info" tabindex="-1">Informations générales</button>
+    </div>
+    <div role="tabpanel" id="panel-theme" aria-labelledby="tab-theme"><div id="theme-panel"></div></div>
+    <div role="tabpanel" id="panel-info" aria-labelledby="tab-info" hidden><div id="info-panel"></div></div>
+    <div class="dlg-foot"><button type="button" class="btn primary" id="cfg-done">Terminer</button></div>
+  </dialog>
 
   <!-- Ajouter un bloc -->
-  <dialog id="dlg-add" aria-labelledby="add-title">
-    <div class="dlg-head"><h2 id="add-title">Ajouter un bloc</h2><button type="button" class="btn ghost icon" data-close aria-label="Fermer">✕</button></div>
+  <dialog id="dlg-add" class="modal" aria-labelledby="add-title">
+    <div class="dlg-head"><h2 id="add-title">Ajouter un bloc</h2><button type="button" class="iconbtn" data-icon="times" data-size="16" data-close aria-label="Fermer"></button></div>
     <div id="add-grid" class="add-grid"></div>
   </dialog>
 
   <!-- Mes applis / modèles -->
-  <dialog id="dlg-home" aria-labelledby="home-title">
-    <div class="dlg-head"><h2 id="home-title">Mes applis</h2><button type="button" class="btn ghost icon" id="home-close" data-close aria-label="Fermer">✕</button></div>
+  <dialog id="dlg-home" class="modal" aria-labelledby="home-title">
+    <div class="dlg-head"><h2 id="home-title">Mes applis</h2><button type="button" class="iconbtn" data-icon="times" data-size="16" id="home-close" data-close aria-label="Fermer"></button></div>
     <div id="home-mine"></div>
     <h3>Créer une nouvelle appli</h3>
     <div id="home-templates" class="tpl-grid"></div>
     <h3>Reprendre un travail existant</h3>
     <p class="muted">Ouvrez un fichier <code>.json</code> (projet enregistré) ou un fichier <code>.html</code> exporté par l’Atelier Appli : vous pourrez le modifier.</p>
     <button type="button" class="btn" id="home-import">Ouvrir un fichier…</button>
-    <p class="note">🔒 Tout reste sur votre ordinateur : aucun compte, aucun serveur, aucune IA.</p>
+    <p class="note">Tout reste sur votre ordinateur : aucun compte, aucun serveur, aucune IA.</p>
   </dialog>
 
   <!-- Export -->
-  <dialog id="dlg-export" aria-labelledby="exp-title">
-    <div class="dlg-head"><h2 id="exp-title">Télécharger l’appli</h2><button type="button" class="btn ghost icon" data-close aria-label="Fermer">✕</button></div>
-    <p>Vous obtenez <b>un seul fichier HTML autonome</b> (pages, images et styles inclus). Aucun serveur de base de données n’est nécessaire.</p>
+  <dialog id="dlg-export" class="modal" aria-labelledby="exp-title">
+    <div class="dlg-head"><h2 id="exp-title">Télécharger l’appli</h2><button type="button" class="iconbtn" data-icon="times" data-size="16" data-close aria-label="Fermer"></button></div>
+    <p>Vous obtenez <b>un seul fichier HTML autonome</b> (pages, images, polices et styles inclus). Aucune base de données n’est nécessaire.</p>
     <p class="exp-summary" id="exp-summary"></p>
     <p class="status warn" id="exp-warn" hidden></p>
     <ul class="issues" id="exp-issues" hidden></ul>
@@ -104,15 +117,18 @@
 
     <h3>Comment le mettre en ligne ?</h3>
     <ol class="howto">
-      <li><b>Sur votre serveur / hébergeur</b> (OVH, o2switch, serveur du centre…) : déposez <code>index.html</code> dans un dossier, par exemple <code>/appli-accueil/</code>. L’adresse sera <code>https://votre-site.fr/appli-accueil/</code>.</li>
-      <li><b>Gratuitement</b> : GitHub Pages, Netlify Drop (glisser-déposer du dossier), Cloudflare Pages ou le « pages perso » de votre établissement.</li>
+      <li><b>Sur votre serveur ou votre hébergeur</b> : déposez <code>index.html</code> dans un dossier, par exemple <code>/appli-accueil/</code>. L’adresse sera <code>https://votre-site.fr/appli-accueil/</code>.</li>
+      <li><b>Gratuitement</b> : GitHub Pages, Netlify Drop (glisser-déposer du dossier) ou Cloudflare Pages.</li>
       <li><b>Sur un intranet ou une clé USB</b> : le fichier s’ouvre aussi par double-clic. Les vidéos YouTube et certains formulaires exigent une adresse <code>https://</code>.</li>
-      <li><b>Documents PDF</b> : placez-les à côté (<code>documents/reglement.pdf</code>) et saisissez ce chemin dans un bloc « Lien ».</li>
-      <li><b>QR code</b> : générez-en un depuis l’adresse finale avec n’importe quel générateur (par exemple dans LibreOffice, ou <i>qrcode-monkey.com</i>) pour l’afficher dans vos locaux.</li>
+      <li><b>Documents PDF</b> : placez-les à côté (<code>documents/reglement.pdf</code>) et saisissez ce chemin dans un bloc « Liens et documents ».</li>
+      <li><b>QR code</b> : générez-en un depuis l’adresse finale avec le générateur de votre choix, pour l’afficher dans vos locaux.</li>
     </ol>
-    <p class="note">💡 Ce fichier contient aussi votre projet : vous pourrez le rouvrir dans l’Atelier (« Mes applis › Ouvrir un fichier ») pour le modifier plus tard.</p>
+    <p class="note">Ce fichier contient aussi votre projet : vous pourrez le rouvrir dans l’Atelier (« Mes applis », puis « Ouvrir un fichier ») pour le modifier plus tard.</p>
   </dialog>
 
+  <script src="js/icons.js"></script>
+  <script src="js/logo-data.js"></script>
+  <script src="js/font-data.js"></script>
   <script src="js/runtime-css.js"></script>
   <script src="js/runtime.js"></script>
   <script src="js/templates.js"></script>
