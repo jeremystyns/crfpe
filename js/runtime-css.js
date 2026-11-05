@@ -17,7 +17,7 @@ a:hover{color:var(--c-link-hover)}
 .ma-app{max-width:760px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;background:var(--c-bg)}
 
 /* En-tête */
-.ma-head{position:sticky;top:0;z-index:5;background:var(--c-head);color:var(--c-on-head);padding:12px 20px;display:flex;align-items:center;gap:14px}
+.ma-head{position:sticky;top:0;z-index:5;background:var(--c-head);box-shadow:0 0 0 100vmax var(--c-head);clip-path:inset(0 -100vmax);color:var(--c-on-head);padding:12px 20px;display:flex;align-items:center;gap:14px}
 .ma-logo{width:42px;height:42px;border-radius:3px;object-fit:cover;box-shadow:0 0 0 2px #fff;flex:none;background:#fff}
 .ma-logo-i{display:grid;place-items:center;background:var(--c-accent);color:var(--c-on-accent);font-weight:800;font-size:1rem;box-shadow:0 0 0 2px #fff}
 .ma-head-t{min-width:0}
@@ -56,7 +56,7 @@ a:hover{color:var(--c-link-hover)}
 /* Bandeau : aplat bleu, cercles pointillés pâles et demi-lentille, comme le modèle de présentation */
 .ma-hero{position:relative;border-radius:6px;overflow:hidden;background:var(--c-hero);color:var(--c-on-hero);isolation:isolate}
 .ma-hero-img{display:block;width:100%;aspect-ratio:16/9;background-color:var(--c-soft);background-size:cover;background-position:center}
-.ma-hero-body{position:relative;padding:36px 24px 32px;min-height:176px;display:flex;flex-direction:column;justify-content:flex-end}
+.ma-hero-body{position:relative;padding:36px 92px 32px 24px;min-height:176px;display:flex;flex-direction:column;justify-content:flex-end}
 .ma-hero-body::before{content:"";position:absolute;right:-70px;top:-90px;width:300px;height:300px;border:1.5px dotted rgba(255,255,255,.34);border-radius:50%;z-index:-1}
 .ma-hero-body::after{content:"";position:absolute;right:-18px;bottom:-18px;width:112px;height:112px;background:var(--c-lens);opacity:var(--c-lens-o,.55);border-radius:100% 0 0 0;z-index:-1}
 .ma-hero h2{margin:0 0 8px;font-size:1.9rem;line-height:1.12;font-weight:800;letter-spacing:-.02em;max-width:18ch;text-wrap:balance}

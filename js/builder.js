@@ -125,7 +125,7 @@
 
   const BLOCKS = {
     hero: {
-      label: 'Bandeau d’accueil', icon: 'flag', group: 'Mise en avant', desc: 'Grand titre sur aplat de couleur, avec image facultative.',
+      label: 'Bandeau d’accueil', icon: 'star', group: 'Mise en avant', desc: 'Grand titre sur aplat de couleur, avec image facultative.',
       make: () => ({ title: 'Titre du bandeau', text: '', image: '' }),
       summary: (b) => b.title,
       fields: [
@@ -135,7 +135,7 @@
       ]
     },
     title: {
-      label: 'Titre', icon: 'list-ul', group: 'Texte et médias', desc: 'Un intertitre pour organiser la page.',
+      label: 'Titre', icon: 'flag', group: 'Texte et médias', desc: 'Un intertitre pour organiser la page.',
       make: () => ({ text: 'Nouveau titre', level: 2 }),
       summary: (b) => b.text,
       fields: [
@@ -150,7 +150,7 @@
       fields: [{ k: 'text', l: 'Texte', t: 'textarea', md: true, rows: 6, help: MD_HELP }]
     },
     image: {
-      label: 'Image', icon: 'file', group: 'Texte et médias', desc: 'Une photo, compressée automatiquement.',
+      label: 'Image', icon: 'folder', group: 'Texte et médias', desc: 'Une photo, compressée automatiquement.',
       make: () => ({ src: '', alt: '', caption: '', size: 'full' }),
       summary: (b) => b.caption || b.alt || (b.src ? 'Image' : 'Aucune image choisie'),
       fields: [

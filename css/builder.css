@@ -279,3 +279,7 @@ dialog.floating .dlg-head h2{font-size:1.25rem}
   dialog.floating{top:calc(var(--topbar-h) + 8px);max-height:calc(100vh - var(--topbar-h) - 16px)}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+/* Entrée courte de la fenêtre Configuration (ease-out, 180 ms) */
+@keyframes cfg-in{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
+dialog.floating[open]{animation:cfg-in .18s cubic-bezier(0,0,.2,1)}
