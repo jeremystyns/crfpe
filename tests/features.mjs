@@ -76,7 +76,15 @@ await page.click('.page-btn:has-text("Formations") >> nth=0');
 await page.click('.blk:has-text("Cartes") .blk-toggle');
 await page.click('.blk.open button:has-text("Ajouter une carte")');
 await page.fill('.blk.open details.item[open] input[type=text] >> nth=0', 'Assistant familial');
-await page.click('.blk.open details.item[open] button:has-text("Créer une sous-page pour cette carte")');
+const modes = await page.locator('.blk.open details.item[open] .link-modes .seg').allTextContents();
+ok(modes.join('|') === 'Aucun|Sous-page|Autre page|Lien web', 'une carte propose un seul choix : ' + modes.join(', '));
+ok(await page.locator('.blk.open details.item[open] input[type=text]').count() === 2 && await page.locator('.blk.open details.item[open] .link-body select').count() === 0, 'sans choix : ni liste de pages ni champ d’adresse');
+await page.click('.blk.open details.item[open] .link-modes .seg:has-text("Lien web")');
+ok(await page.locator('.blk.open details.item[open] .link-body input[type=text]').count() === 1, 'choix « Lien web » : seul le champ d’adresse apparaît');
+await page.click('.blk.open details.item[open] .link-modes .seg:has-text("Autre page")');
+ok(await page.locator('.blk.open details.item[open] .link-body select').count() === 1 && await page.locator('.blk.open details.item[open] .link-body input[type=text]').count() === 0, 'choix « Autre page » : seule la liste des pages apparaît');
+await page.click('.blk.open details.item[open] .link-modes .seg:has-text("Sous-page")');
+await page.click('.blk.open details.item[open] button:has-text("Créer la sous-page")');
 await page.waitForTimeout(300);
 const a2 = await app();
 const created = a2.pages.find((p) => p.title === 'Assistant familial');
@@ -101,6 +109,36 @@ await p2.screenshot({ path: path.join(out, 'f2-souspage.png') });
 await p2.locator('.ma-back').click();
 ok(p2.url().endsWith('#/formations'), 'le retour revient à la page principale');
 await p2.close();
+
+console.log('2b. Finitions d’affichage');
+await page.click('#btn-add-page'); await page.waitForTimeout(150);
+await page.click('.page-row.sel .mini'); await page.waitForTimeout(300);
+const over = await page.evaluate(() => { const p = document.querySelector('.pages-panel'); const cs = getComputedStyle(p); const inner = p.getBoundingClientRect().right - parseFloat(cs.paddingRight) + 1; return [...document.querySelectorAll('.page-row')].filter((li) => li.getBoundingClientRect().right > inner).length; });
+ok(over === 0, 'aucune ligne de la liste des pages ne dépasse du panneau (même avec « barre » et sous-pages)');
+const p4 = await ctx.newPage(); await p4.setViewportSize({ width: 390, height: 800 });
+await p4.goto('file://' + path.join(out, 'sub.html'));
+await p4.locator('.ma-tab', { hasText: 'Formations' }).click(); await p4.locator('.ma-card a', { hasText: 'Éducateur' }).click();
+await p4.locator('.ma-back').waitFor();
+const ic = await p4.locator('.ma-back svg path').count();
+ok(ic > 0 && await p4.locator('.ma-back .ma-flip').count() === 1, 'le bouton Retour affiche sa flèche');
+await p4.close();
+
+console.log('2c. Pas de débordement aux différentes largeurs');
+for (const w of [1440, 1180, 1000, 820, 390]) {
+  await page.setViewportSize({ width: w, height: 900 }); await page.waitForTimeout(150);
+  const bad = await page.evaluate(() => {
+    const out = [];
+    document.querySelectorAll('.col-left *, .col-mid *, .topbar *').forEach((e) => {
+      if (e.closest('dialog') || e.closest('.sr-only')) return;
+      const r = e.getBoundingClientRect(); if (!r.width) return;
+      const c = e.closest('.col, .topbar').getBoundingClientRect();
+      if (r.right > c.right + 1 || r.left < c.left - 1) out.push(e.className || e.tagName);
+    });
+    return out.length + (document.documentElement.scrollWidth > document.documentElement.clientWidth ? 1000 : 0);
+  });
+  ok(bad === 0, 'constructeur à ' + w + ' px : rien ne dépasse');
+}
+await page.setViewportSize({ width: 1440, height: 900 });
 
 console.log('3. Éditeur de texte visuel');
 await page.click('.page-btn:has-text("Accueil")');

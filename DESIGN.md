@@ -25,9 +25,13 @@ Barre du bas : 4 pages au plus + bouton « Menu » (trois traits dessinés, coul
 ## Éditeur de texte visuel
 Barre de mise en forme sur fond gris #EDEFF2, boutons à angle de 3 px, état actif en bleu plein. Palettes : texte (noir, bleu, cyan, rouge, orange, vert, gris, teintes lisibles à 4,5:1 et adaptées au mode sombre), stabilo (jaune, vert, rose, bleu clair de la charte), trait (cyan, orange, rouge, vert, bleu). Pictogrammes d'alignement dessinés (le jeu CRFPE n'en a pas).
 
+## Formulaire d'une carte ou d'un lien
+Un seul choix « Quand on clique sur la carte » (Aucun, Sous-page, Autre page, Lien web), en contrôle segmenté bleu ; seul le champ utile s'affiche dessous. Titre et étiquette sur une même ligne. Une sous-page se crée en un clic et reste liée à la carte.
+
 ## Écarts assumés
 - Texte secondaire #566074 au lieu de #58889E (contraste 4,5:1 sur blanc).
 - `chevron-down.svg` / `chevron-up.svg` du design system sont inversés avec un pouce levé : corrigés dans `js/icons.js`.
 - Le jeu d'icônes nommées n'a pas de glyphe image ni vidéo : Image = dossier, Vidéo = écran.
+- La flèche « retour » est la flèche droite du jeu, retournée (le jeu n'a pas de flèche gauche).
 - Le jeu d'icônes ne contient ni alignement, ni menu, ni liste numérotée : traits dessinés à la main, même épaisseur, une couleur.
 - Détecteur : filets 4 px en haut et soulignement 3 px ignorés, car prescrits par la charte.

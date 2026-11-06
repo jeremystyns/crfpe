@@ -12,6 +12,7 @@ a:hover{color:var(--c-link-hover)}
 ::selection{background:var(--c-accent);color:var(--c-on-accent)}
 :focus-visible{outline:2px solid var(--c-focus);outline-offset:2px;border-radius:3px}
 .ma-svg{display:inline-block;flex:none;fill:currentColor;vertical-align:middle}
+.ma-flip{transform:scaleX(-1)}
 .ma-skip{position:absolute;left:-999px;top:0;background:#fff;color:#000;padding:8px 12px;z-index:20}
 .ma-skip:focus{left:8px;top:8px}
 .ma-app{max-width:760px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;background:var(--c-bg)}
