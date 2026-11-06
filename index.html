@@ -27,8 +27,8 @@
       <button type="button" class="tbtn" id="btn-home" data-icon="folder">Mes applis</button>
       <button type="button" class="tbtn" id="btn-config" data-icon="cog" aria-haspopup="dialog" aria-expanded="false" aria-controls="dlg-config">Configuration</button>
       <button type="button" class="tbtn" id="btn-save" data-icon="file-text" title="Sauvegarde de travail à conserver ou à partager avec un collègue">Enregistrer le projet</button>
+      <button type="button" class="tbtn" id="btn-preview" data-icon="desktop" aria-haspopup="dialog" aria-expanded="false" aria-controls="dlg-preview" title="Voir l’appli en grand : mobile, tablette, ordinateur">Aperçu</button>
       <button type="button" class="tbtn accent" id="btn-export" data-icon="download">Télécharger l’appli</button>
-      <button type="button" class="tbtn preview-toggle" id="btn-preview-toggle" aria-pressed="false">Aperçu</button>
     </div>
   </header>
 
@@ -56,13 +56,8 @@
     <section class="col col-right" aria-label="Aperçu en direct">
       <div class="preview-bar">
         <h2 class="preview-label">Aperçu en direct</h2>
-        <div class="devices" role="group" aria-label="Taille de l’aperçu">
-          <button type="button" class="seg" data-device="phone" aria-pressed="true">Mobile</button>
-          <button type="button" class="seg" data-device="tablet" aria-pressed="false">Tablette</button>
-          <button type="button" class="seg" data-device="desktop" aria-pressed="false">Ordinateur</button>
-        </div>
       </div>
-      <div id="preview-box" class="preview-box" data-device="phone">
+      <div id="preview-box" class="preview-box">
         <iframe id="preview" title="Aperçu de l’appli" sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-downloads allow-popups-to-escape-sandbox"></iframe>
       </div>
       <p class="muted small-note">L’aperçu est cliquable : testez la navigation comme sur un téléphone.</p>
@@ -85,6 +80,22 @@
     <div role="tabpanel" id="panel-theme" aria-labelledby="tab-theme"><div id="theme-panel"></div></div>
     <div role="tabpanel" id="panel-info" aria-labelledby="tab-info" hidden><div id="info-panel"></div></div>
     <div class="dlg-foot"><button type="button" class="btn primary" id="cfg-done">Terminer</button></div>
+  </dialog>
+
+  <!-- Aperçu plein écran : mobile, tablette ou ordinateur -->
+  <dialog id="dlg-preview" class="fullscreen" aria-labelledby="preview-title">
+    <div class="fs-head">
+      <h2 id="preview-title">Aperçu de l’appli</h2>
+      <div class="devices" role="group" aria-label="Taille de l’aperçu">
+        <button type="button" class="seg" data-device="phone" aria-pressed="true">Mobile</button>
+        <button type="button" class="seg" data-device="tablet" aria-pressed="false">Tablette</button>
+        <button type="button" class="seg" data-device="desktop" aria-pressed="false">Ordinateur</button>
+      </div>
+      <button type="button" class="btn primary small" id="preview-close">Fermer l’aperçu</button>
+    </div>
+    <div id="preview-stage" class="fs-stage" data-device="phone">
+      <iframe id="preview-full" title="Aperçu de l’appli en grand" sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-downloads allow-popups-to-escape-sandbox"></iframe>
+    </div>
   </dialog>
 
   <!-- Ajouter un bloc -->

@@ -38,7 +38,7 @@ python3 -m http.server 8000      # puis ouvrir http://localhost:8000/
 
 - **Barre du bas** : 4 pages au plus (l'accueil en fait partie), à choisir parmi les pages créées (case « Afficher dans la barre du bas » dans les réglages de la page).
 - **Menu hamburger** (bouton « Menu », à droite de la barre) : montre toutes les pages principales.
-- **Sous-pages** : une page peut avoir des sous-pages, mais pas plus (un seul niveau). Bouton « + » à côté d'une page dans la liste, ou « Créer une sous-page pour cette carte » dans une carte : la sous-page est créée et reliée à la carte en un clic. Les sous-pages n'apparaissent ni dans la barre ni dans le menu ; elles s'ouvrent par une carte, un bouton ou un lien, avec un bouton « Retour ».
+- **Sous-pages** : une page peut avoir des sous-pages, mais pas plus (un seul niveau). Bouton « + » à côté d'une page dans la liste (seul endroit pour en ajouter une), ou « Créer une sous-page » dans une carte : la sous-page est créée et reliée à la carte en un clic. Les sous-pages n'apparaissent ni dans la barre ni dans le menu ; elles s'ouvrent par une carte, un bouton ou un lien, avec un bouton « Retour ».
 - **Pages cachées** : décochez la barre et le menu ; on y accède par un bouton, une carte ou un lien (utile pour un jeu de piste).
 
 ### Texte
