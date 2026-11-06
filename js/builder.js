@@ -146,7 +146,7 @@
       ]
     },
     text: {
-      label: 'Texte', icon: 'file-text', group: 'Texte et médias', desc: 'Paragraphes, listes, liens, gras, italique.',
+      label: 'Texte', icon: 'file-text', group: 'Texte et médias', desc: 'Texte mis en forme : tailles, couleurs, stabilo, listes, liens.',
       make: () => ({ text: RTE.emptyDoc() }),
       summary: (b) => RTE.docToPlain(b.text).slice(0, 60),
       fields: [{ k: 'text', l: 'Texte', t: 'rich', help: RTE_HELP }]
@@ -211,8 +211,7 @@
         fields: [
           { k: 'label', l: 'Intitulé', t: 'text', ph: 'Ex : Règlement intérieur' },
           { k: 'desc', l: 'Précision (facultatif)', t: 'text', ph: 'Ex : PDF, deux pages' },
-          { k: 'url', l: 'Adresse', t: 'text', ph: 'https://… ou documents/reglement.pdf' },
-          { k: 'page', l: 'ou page de l’appli', t: 'page', help: 'Si une page est choisie, elle remplace l’adresse.' }
+          { t: 'link', l: 'Destination', modes: ['url', 'page', 'sub'], what: 'ce lien', redraw: true }
         ]
       }]
     },
@@ -232,13 +231,11 @@
           k: 'items', t: 'items', l: 'Cartes', add: 'Ajouter une carte', itemTitle: (it) => it.title || 'Carte',
           make: () => ({ title: 'Nouvelle carte', text: '', tag: '', image: '', page: '', url: '' }),
           fields: [
-            { k: 'title', l: 'Titre', t: 'text', ph: 'Ex : Marie Dupont' },
-            { k: 'tag', l: 'Étiquette (facultatif)', t: 'text', ph: 'Ex : Formatrice, Actualité' },
+            { k: 'title', l: 'Titre', t: 'text', ph: 'Ex : Marie Dupont', half: true },
+            { k: 'tag', l: 'Étiquette (facultatif)', t: 'text', ph: 'Ex : Formatrice', half: true },
             { k: 'text', l: 'Description', t: 'textarea', rows: 2 },
             { k: 'image', l: 'Image (facultatif)', t: 'image', max: 480 },
-            { k: 'sp', l: 'Page ouverte par la carte', t: 'subpage', redraw: true, what: 'cette carte' },
-            { k: 'page', l: 'ou relier à une page existante', t: 'page' },
-            { k: 'url', l: 'ou ouvre cette adresse (facultatif)', t: 'text', ph: 'https://…' }
+            { t: 'link', l: 'Quand on clique sur la carte', modes: ['none', 'sub', 'page', 'url'], what: 'cette carte', redraw: true }
           ]
         }
       ]
@@ -602,7 +599,7 @@
           el('ul', null, def.items.map((t) => el('li', { text: t }))),
           def.foot ? el('p', { class: 'help', text: def.foot }) : null
         ]);
-      case 'subpage': return subpageField(def, obj, onChange);
+      case 'link': return linkField(def, obj, onChange);
       case 'items': return itemsEditor(def, obj, onChange);
       default: ctl = el('span');
     }
@@ -614,6 +611,16 @@
       : el('div', { class: 'field' }, [label, ctl, statusEl, help]);
   }
 
+  /* Construit les champs d'un formulaire : masque ceux qui ne s'appliquent pas, met les champs « half » côte à côte */
+  function buildFields(defs, obj, cb) {
+    const out = []; let row = null;
+    defs.forEach((f) => {
+      if (f.show && !f.show(obj)) return;
+      const n = field(f, obj, cb);
+      if (f.half) { if (!row) { row = el('div', { class: 'row two' }); out.push(row); } row.appendChild(n); } else { row = null; out.push(n); }
+    });
+    return out;
+  }
   const mini = (ic, title, fn, dis) => el('button', { type: 'button', class: 'mini', title, 'aria-label': title, disabled: dis, onclick: (e) => { e.preventDefault(); e.stopPropagation(); fn(e); } }, icon(ic, 16));
   const grip = (fixed) => el('span', { class: 'grip' + (fixed ? ' fixed' : ''), draggable: fixed ? null : 'true', title: fixed ? 'Page d’accueil : position fixe' : 'Glisser pour réordonner', 'aria-hidden': 'true' });
 
@@ -633,7 +640,7 @@
             mini('arrow-down', 'Descendre', () => move(i, i + 1), i === arr().length - 1),
             mini('trash', 'Supprimer', () => { arr().splice(i, 1); open = -1; draw(); onChange(def, true); })
           ])]),
-          el('div', { class: 'item-body' }, def.fields.map((f) => field(f, it, (fd, imm) => { sum.textContent = def.itemTitle(it); onChange(def, imm); if (fd.redraw) { open = i; draw(); } })))
+          el('div', { class: 'item-body' }, buildFields(def.fields, it, (fd, imm) => { sum.textContent = def.itemTitle(it); onChange(def, imm); if (fd.redraw) { open = i; draw(); } }))
         ]);
         det.addEventListener('toggle', () => { if (det.open) open = i; else if (open === i) open = -1; });
         list.appendChild(det);
@@ -734,14 +741,11 @@
       const body = el('div', { class: 'blk-body', id: 'body-' + b.id });
       const build = () => {
         body.replaceChildren();
-        def.fields.forEach((f) => {
-          if (f.show && !f.show(b)) return;
-          body.appendChild(field(f, b, (fd, imm) => {
-            sumEl.textContent = def.summary(b) || '…';
-            changed({ now: !!imm });
-            if (fd.refresh) build();
-          }));
-        });
+        buildFields(def.fields, b, (fd, imm) => {
+          sumEl.textContent = def.summary(b) || '…';
+          changed({ now: !!imm });
+          if (fd.refresh) build();
+        }).forEach((n) => body.appendChild(n));
       };
       build();
       card.appendChild(body);
@@ -818,29 +822,48 @@
     return p;
   }
 
-  /* Champ « page ouverte par la carte » : crée la sous-page en un clic et la relie à la carte */
-  function subpageField(def, obj, onChange) {
-    const wrap = el('div', { class: 'field' });
+  /* Destination d'une carte ou d'un lien : UN choix (aucun, sous-page, autre page, lien web), puis seul le champ utile s'affiche.
+     Les données restent `page` et `url` ; le mode est déduit d'elles (ou mémorisé tant qu'elles sont vides). */
+  const LINK_LABELS = { none: 'Aucun', sub: 'Sous-page', page: 'Autre page', url: 'Lien web' };
+  const linkModeMemo = new WeakMap();
+  function linkField(def, obj, onChange) {
     const cur = currentPage();
+    const modes = def.modes.filter((m) => m !== 'sub' || !cur.parent);
     const linked = obj.page ? pageById(obj.page) : null;
-    wrap.appendChild(el('label', { text: def.l }));
-    if (linked) {
-      wrap.appendChild(el('div', { class: 'sub-linked' }, [
-        icon('check-circle', 16),
-        el('span', { text: 'Ouvre « ' + (linked.parent ? pageTitle(linked.parent) + ' › ' : '') + linked.title + ' »' }),
-        btn('Modifier cette page', null, { class: 'btn small', onclick: () => selectPage(linked.id) })
+    const derived = linked ? (linked.parent === cur.id ? 'sub' : 'page') : (obj.url ? 'url' : null);
+    let mode = derived || linkModeMemo.get(obj) || modes[0];
+    if (!modes.includes(mode)) mode = modes[0];
+    const wrap = el('div', { class: 'field link-field' });
+    wrap.appendChild(el('span', { class: 'lbl', id: 'lk' + (++fieldSeq), text: def.l }));
+    const group = el('div', { class: 'devices link-modes', role: 'radiogroup', 'aria-labelledby': wrap.firstChild.id });
+    modes.forEach((m) => group.appendChild(el('button', { type: 'button', class: 'seg', role: 'radio', 'aria-checked': String(m === mode), text: LINK_LABELS[m], onclick: () => {
+      if (m === mode) return;
+      if (m === 'none' || m === 'url') obj.page = '';
+      if (m === 'none' || m === 'sub' || m === 'page') obj.url = '';
+      if ((m === 'sub' || m === 'page') && linked) obj.page = '';
+      linkModeMemo.set(obj, m); onChange(def, true);
+    } })));
+    wrap.appendChild(group);
+    const body = el('div', { class: 'link-body' });
+    const inner = (f) => field(f, obj, (fd, imm) => onChange(fd, imm));
+    if (mode === 'none') body.appendChild(el('p', { class: 'help', text: 'Cliquer sur ' + def.what + ' ne fait rien.' }));
+    else if (mode === 'url') body.appendChild(inner({ k: 'url', l: 'Adresse', t: 'text', ph: 'https://… ou documents/reglement.pdf', help: 'Un chemin relatif (documents/reglement.pdf) fonctionne si le fichier est hébergé à côté de l’appli.' }));
+    else if (mode === 'page') body.appendChild(inner({ k: 'page', l: 'Page à ouvrir', t: 'page' }));
+    else if (linked && linked.parent === cur.id) {
+      body.appendChild(el('div', { class: 'sub-linked' }, [
+        icon('check-circle', 16), el('span', { text: 'Ouvre la sous-page « ' + linked.title + ' »' }),
+        btn('Modifier la sous-page', null, { class: 'btn small', onclick: () => selectPage(linked.id) })
       ]));
-    } else if (cur.parent) {
-      wrap.appendChild(el('p', { class: 'help', text: 'Cette page est déjà une sous-page : elle ne peut pas en contenir d’autres. Reliez ' + def.what + ' à une page existante avec la liste ci-dessous.' }));
     } else {
-      wrap.appendChild(btn('Créer une sous-page pour ' + def.what, 'plus', { class: 'btn small', onclick: () => {
+      body.appendChild(btn('Créer la sous-page', 'plus', { class: 'btn small', onclick: () => {
         const sp = addSubPage(cur, obj.title || obj.label || 'Nouvelle sous-page');
         if (!sp) return;
         obj.page = sp.id; obj.url = '';
         renderPagesList(); onChange(def, true); toast('Sous-page créée : elle s’ouvre en cliquant sur ' + def.what + '.', 'ok');
       } }));
-      wrap.appendChild(el('p', { class: 'help', text: 'La sous-page apparaît sous « ' + cur.title + ' » dans la liste des pages, mais pas dans le menu de l’appli.' }));
+      body.appendChild(el('p', { class: 'help', text: 'Elle apparaît sous « ' + cur.title + ' » dans la liste des pages, mais pas dans le menu de l’appli.' }));
     }
+    wrap.appendChild(body);
     return wrap;
   }
 
@@ -913,8 +936,8 @@
       ]));
     }
     host.appendChild(el('div', { class: 'row actions' }, [
-      home ? null : btn('Monter', 'arrow-up', { class: 'btn small', onclick: () => moveSibling(p, -1) }),
-      home ? null : btn('Descendre', 'arrow-down', { class: 'btn small', onclick: () => moveSibling(p, 1) }),
+      home ? null : el('button', { type: 'button', class: 'btn small icon-only', title: 'Monter la page', 'aria-label': 'Monter la page', onclick: () => moveSibling(p, -1) }, icon('arrow-up', 16)),
+      home ? null : el('button', { type: 'button', class: 'btn small icon-only', title: 'Descendre la page', 'aria-label': 'Descendre la page', onclick: () => moveSibling(p, 1) }, icon('arrow-down', 16)),
       sub ? null : btn('Ajouter une sous-page', 'plus', { class: 'btn small', onclick: () => { const sp = addSubPage(p); if (sp) { selectPage(sp.id); const t = $('#pg-title'); if (t) { t.focus(); t.select(); } } } }),
       btn('Dupliquer', null, { class: 'btn small', onclick: () => duplicatePage(p) }),
       home ? null : btn('Supprimer', 'trash', { class: 'btn small danger', onclick: () => deletePage(p) })

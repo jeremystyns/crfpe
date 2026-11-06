@@ -100,16 +100,23 @@
   function mdToDoc(md) {
     const doc = emptyDoc();
     String(md || '').replace(/\r/g, '').split(/\n{2,}/).forEach((blk) => {
-      const lines = blk.split('\n').filter((l) => l.trim() !== '');
-      if (!lines.length) return;
-      const ul = lines.every((l) => /^\s*[-*•]\s+/.test(l)), ol = lines.every((l) => /^\s*\d+[.)]\s+/.test(l));
-      if (ul || ol) {
-        doc.b.push({ k: ul ? 'ul' : 'ol', i: lines.map((l) => mdInline(l.replace(/^\s*(?:[-*•]|\d+[.)])\s+/, ''))) });
-      } else {
-        const r = [];
-        lines.forEach((l, i) => { if (i) r.push({ br: 1 }); mdInline(l).forEach((x) => r.push(x)); });
-        doc.b.push({ k: 'p', r });
-      }
+      let para = [], list = null;
+      const flushPara = () => {
+        if (!para.length) return;
+        const r = []; para.forEach((l, i) => { if (i) r.push({ br: 1 }); mdInline(l).forEach((x) => r.push(x)); });
+        doc.b.push({ k: 'p', r }); para = [];
+      };
+      const flushList = () => { if (list) { doc.b.push(list); list = null; } };
+      blk.split('\n').filter((l) => l.trim() !== '').forEach((l) => {
+        const ul = /^\s*[-*•]\s+/.test(l), ol = /^\s*\d+[.)]\s+/.test(l);
+        if (ul || ol) {
+          flushPara();
+          const k = ul ? 'ul' : 'ol';
+          if (!list || list.k !== k) { flushList(); list = { k, i: [] }; }
+          list.i.push(mdInline(l.replace(/^\s*(?:[-*•]|\d+[.)])\s+/, '')));
+        } else { flushList(); para.push(l); }
+      });
+      flushPara(); flushList();
     });
     return doc;
   }

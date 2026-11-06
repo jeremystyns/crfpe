@@ -68,7 +68,7 @@ window.MonAppRuntime = function (root, initial, opts) {
     });
     return s;
   }
-  var FIXED_ICONS = ['info-circle', 'exclamation-circle', 'check-circle', 'bullhorn', 'map-marker', 'phone', 'envelope', 'clock', 'link', 'file-text', 'chevron-right', 'arrow-left', 'calendar', 'file'];
+  var FIXED_ICONS = ['info-circle', 'exclamation-circle', 'check-circle', 'bullhorn', 'map-marker', 'phone', 'envelope', 'clock', 'link', 'file-text', 'chevron-right', 'arrow-right', 'calendar', 'file'];
 
   /* URL « sûre » : http(s), mailto, tel, ou chemin relatif (ex. documents/reglement.pdf).
      Tout autre schéma (javascript:, data:, vbscript:…) est refusé. */
@@ -582,6 +582,8 @@ window.MonAppRuntime = function (root, initial, opts) {
   /* Menu hamburger : toutes les pages principales, jamais les sous-pages */
   function menuPages() { return topPages().filter(function (p, i) { return i === 0 || p.menu !== false; }); }
 
+  function flip(svg) { svg.setAttribute('class', 'ma-svg ma-flip'); return svg; }
+
   function burger(size) {
     var s = doc.createElementNS(NS, 'svg');
     s.setAttribute('class', 'ma-svg'); s.setAttribute('width', String(size)); s.setAttribute('height', String(size));
@@ -632,7 +634,7 @@ window.MonAppRuntime = function (root, initial, opts) {
         class: 'ma-back', href: '#/' + target.id, onclick: function (e) {
           if (navCount > 0) { e.preventDefault(); win.history.back(); }
         }
-      }, [ico('arrow-left', 16), parent ? 'Retour : ' + S(parent.title) : 'Retour']));
+      }, [flip(ico('arrow-right', 16)), parent ? 'Retour : ' + S(parent.title) : 'Retour']));
     }
     if (page.showTitle !== false && S(page.title)) main.appendChild(el('h1', { class: 'ma-page-h', text: S(page.title) }));
     arr(page.blocks).forEach(function (b) {
@@ -649,7 +651,7 @@ window.MonAppRuntime = function (root, initial, opts) {
     if (showBar) {
       var nav = el('nav', { class: 'ma-tabs', 'aria-label': 'Navigation principale' });
       bar.forEach(function (p) {
-        nav.appendChild(el('a', { class: 'ma-tab', href: '#/' + p.id, 'aria-current': p === activeTop ? 'page' : null }, [
+        nav.appendChild(el('a', { class: 'ma-tab', href: '#/' + p.id, 'aria-current': p === activeTop && !menuOpen ? 'page' : null }, [
           ico(p.icon || 'file-text', 22), el('div', { text: S(p.title) })
         ]));
       });
