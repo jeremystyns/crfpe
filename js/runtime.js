@@ -133,7 +133,7 @@ window.MonAppRuntime = function (root, initial, opts) {
       '--c-btn': btn, '--c-on-btn': onColor(btn), '--c-btn-hover': mix(btn, dark ? '#ffffff' : '#000000', dark ? 0.15 : 0.22),
       '--c-accent': accent, '--c-on-accent': onColor(accent), '--c-accent-hover': mix(accent, dark ? '#ffffff' : '#000000', dark ? 0.15 : 0.12),
       '--c-bg': bg, '--c-surface': surface, '--c-text': text, '--c-muted': dark ? '#a5b3c7' : '#566074',
-      '--c-border': dark ? '#263b57' : 'rgba(0,0,0,.12)',
+      '--c-border': dark ? '#263b57' : 'rgba(0,30,60,.08)',
       '--c-link': link, '--c-link-hover': dark ? mix(link, '#ffffff', 0.2) : '#00799f', '--c-title': title,
       '--c-soft': dark ? mix(primary, surface, 0.7) : mix(primary, '#ffffff', 0.9),
       '--c-team': team, '--c-team-soft': dark ? mix(team, surface, 0.7) : soft, '--c-on-soft': dark ? '#e6ecf4' : '#2f3342',

@@ -464,17 +464,35 @@
     H.iconNames(a).forEach((n) => { if (ICONS[n]) icons[n] = ICONS[n]; });
     return Object.assign({}, a, { icons });
   }
-  let previewReady = false;
+  let previewReady = false, fullReady = false;
   const frame = $('#preview');
+  const fullFrame = $('#preview-full');
   const postPreview = () => {
-    if (!previewReady || !frame.contentWindow) return;
-    frame.contentWindow.postMessage({ type: 'app', app: exportable(app), goto: view.gotoPending ? view.pageId : null, focus: view.focusBlock || null }, '*');
+    if (previewReady && frame.contentWindow) {
+      frame.contentWindow.postMessage({ type: 'app', app: exportable(app), goto: view.gotoPending ? view.pageId : null, focus: view.focusBlock || null }, '*');
+    }
     view.gotoPending = false; view.focusBlock = null;
   };
   const schedulePreview = debounce(postPreview, 120);
   window.addEventListener('message', (e) => {
-    if (e.source === frame.contentWindow && e.data && e.data.type === 'preview-ready') { previewReady = true; view.gotoPending = true; postPreview(); }
+    if (!e.data || e.data.type !== 'preview-ready') return;
+    if (e.source === frame.contentWindow) { previewReady = true; view.gotoPending = true; postPreview(); }
+    else if (e.source === fullFrame.contentWindow) { fullReady = true; fullFrame.contentWindow.postMessage({ type: 'app', app: exportable(app), goto: view.pageId, focus: null }, '*'); }
   });
+
+  /* Aperçu plein écran : l'appli entière, avec le choix Mobile / Tablette / Ordinateur */
+  async function openFullPreview() {
+    const dlg = $('#dlg-preview');
+    fullReady = false;
+    fullFrame.srcdoc = await buildHTML(null, { preview: true });
+    if (!dlg.open) dlg.showModal();
+    $('#btn-preview').setAttribute('aria-expanded', 'true');
+    const on = dlg.querySelector('.seg[aria-pressed=true]'); if (on) on.focus();
+  }
+  function setFullDevice(name) {
+    $('#preview-stage').dataset.device = name;
+    document.querySelectorAll('#dlg-preview [data-device]').forEach((x) => x.setAttribute('aria-pressed', String(x.dataset.device === name)));
+  }
 
   /* ------------------------------------------------------------------ images */
   function readAsDataURL(file) {
@@ -938,7 +956,6 @@
     host.appendChild(el('div', { class: 'row actions' }, [
       home ? null : el('button', { type: 'button', class: 'btn small icon-only', title: 'Monter la page', 'aria-label': 'Monter la page', onclick: () => moveSibling(p, -1) }, icon('arrow-up', 16)),
       home ? null : el('button', { type: 'button', class: 'btn small icon-only', title: 'Descendre la page', 'aria-label': 'Descendre la page', onclick: () => moveSibling(p, 1) }, icon('arrow-down', 16)),
-      sub ? null : btn('Ajouter une sous-page', 'plus', { class: 'btn small', onclick: () => { const sp = addSubPage(p); if (sp) { selectPage(sp.id); const t = $('#pg-title'); if (t) { t.focus(); t.select(); } } } }),
       btn('Dupliquer', null, { class: 'btn small', onclick: () => duplicatePage(p) }),
       home ? null : btn('Supprimer', 'trash', { class: 'btn small danger', onclick: () => deletePage(p) })
     ]));
@@ -1245,14 +1262,10 @@
   $('#home-import').addEventListener('click', () => $('#file-import').click());
   $('#file-import').addEventListener('change', (e) => { const f = e.target.files[0]; e.target.value = ''; if (f) importFile(f); });
   document.querySelectorAll('dialog.modal [data-close]').forEach((b) => b.addEventListener('click', () => b.closest('dialog').close()));
-  document.querySelectorAll('[data-device]').forEach((b) => b.addEventListener('click', () => {
-    document.querySelectorAll('[data-device]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
-    $('#preview-box').dataset.device = b.dataset.device;
-  }));
-  $('#btn-preview-toggle').addEventListener('click', () => {
-    const open = document.body.classList.toggle('show-preview');
-    $('#btn-preview-toggle').setAttribute('aria-pressed', String(open));
-  });
+  $('#btn-preview').addEventListener('click', openFullPreview);
+  document.querySelectorAll('#dlg-preview [data-device]').forEach((b) => b.addEventListener('click', () => setFullDevice(b.dataset.device)));
+  $('#preview-close').addEventListener('click', () => $('#dlg-preview').close());
+  $('#dlg-preview').addEventListener('close', () => { fullFrame.removeAttribute('srcdoc'); $('#btn-preview').setAttribute('aria-expanded', 'false'); });
   document.addEventListener('keydown', (e) => {
     const tag = (e.target.tagName || '').toLowerCase();
     if ((e.ctrlKey || e.metaKey) && !['input', 'textarea', 'select'].includes(tag) && !e.target.isContentEditable) {

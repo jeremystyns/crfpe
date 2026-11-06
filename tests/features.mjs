@@ -233,6 +233,24 @@ ok(hh === '777px', 'l’activité redimensionne le cadre (protocole H5P) : ' + h
 ok(await p3.locator('script[src]').count() === 0, 'aucun script externe chargé');
 await p3.close();
 
+console.log('Aperçu : un seul appareil en direct, aperçu plein écran à la demande');
+ok(await page.locator('.col-right [data-device]').count() === 0, 'l’aperçu en direct n’a plus de choix tablette / ordinateur');
+ok(await page.locator('#page-settings button:has-text("sous-page")').count() === 0, 'la création de sous-page n’existe qu’à un endroit (le « + » de la liste)');
+await page.click('#btn-preview');
+await page.waitForSelector('#dlg-preview[open]');
+const full = page.frameLocator('#preview-full');
+await full.locator('.ma-tabs').waitFor();
+const wPhone = await page.locator('#preview-full').evaluate((f) => f.getBoundingClientRect().width);
+await page.click('#dlg-preview [data-device=tablet]');
+await page.waitForTimeout(400);
+const wTab = await page.locator('#preview-full').evaluate((f) => f.getBoundingClientRect().width);
+await page.click('#dlg-preview [data-device=desktop]');
+await page.waitForTimeout(400);
+const wDesk = await page.locator('#preview-full').evaluate((f) => f.getBoundingClientRect().width);
+ok(wPhone < wTab && wTab < wDesk, 'l’aperçu plein écran passe de mobile à tablette à ordinateur : ' + [wPhone, wTab, wDesk].map(Math.round).join(' < '));
+await page.click('#preview-close');
+ok(await page.locator('#dlg-preview[open]').count() === 0, 'l’aperçu se ferme');
+
 const relevant = errors.filter((e) => !/Failed to load resource|ERR_/.test(e));
 ok(relevant.length === 0, 'aucune erreur JavaScript' + (relevant.length ? ' : ' + relevant.join(' | ') : ''));
 await browser.close(); server.close();
