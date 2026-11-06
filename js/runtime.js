@@ -143,6 +143,12 @@ window.MonAppRuntime = function (root, initial, opts) {
     var tones = dark
       ? { info: ['#14304f', '#2b5a8a', '#7cc8f0'], warn: ['#3a2c12', '#7a5a1d', '#f0b55a'], ok: ['#16331f', '#2f6a3c', '#7fd08a'], alert: ['#3a1a1a', '#8a3030', '#f08a82'] }
       : { info: ['#e8f4fc', '#b7ddff', '#004c8e'], warn: ['#fff4dc', '#ffe4af', '#8a4b00'], ok: ['#eaf5e9', '#c0e1bf', '#2b6e27'], alert: ['#fbe9e7', '#f3a59f', '#a00000'] };
+    var tx = dark ? { bleu: '#7cc8f0', cyan: '#41c8f4', rouge: '#f08a82', orange: '#f0b55a', vert: '#7fd08a', gris: '#a5b3c7' } : { bleu: '#004c8e', cyan: '#00799f', rouge: '#c00000', orange: '#9a5700', vert: '#2b6e27', gris: '#566074' };
+    for (var kt in tx) v['--tx-' + kt] = tx[kt];
+    var hl = { jaune: '#ffeb7a', vert: '#c0e1bf', rose: '#f3a59f', bleu: '#b7ddff' };
+    for (var kh in hl) v['--hl-' + kh] = hl[kh];
+    var tr = { cyan: '#41c8f4', orange: '#f99d1d', rose: '#e75145', vert: '#6cc067', bleu: dark ? '#7cc8f0' : '#004c8e' };
+    for (var kr in tr) v['--tr-' + kr] = tr[kr];
     for (var k in tones) { v['--t-' + k + '-bg'] = tones[k][0]; v['--t-' + k + '-b'] = tones[k][1]; v['--t-' + k + '-i'] = tones[k][2]; }
     return v;
   }
@@ -182,6 +188,22 @@ window.MonAppRuntime = function (root, initial, opts) {
     else if (/(^|\.)wooclap\.com$/.test(h)) service = 'Wooclap';
     else if (/(^|\.)h5p\./.test(h) || /(^|\.)h5p\.org$/.test(h)) service = 'H5P';
     return { src: u.href, origin: u.origin, service: service, height: p.height, warn: warn, open: p.url };
+  }
+
+  /* Activité H5P créée ailleurs : adresse d'intégration (H5P.org, Lumi, Moodle, Éléa, WordPress…) */
+  function h5pInfo(raw) {
+    var i = embedInfo(raw), u, m;
+    if (!i) return null;
+    try { u = new URL(i.src); } catch (e) { return null; }
+    var h = u.hostname.replace(/^www\./, '');
+    i.service = 'H5P';
+    if (h === 'h5p.org' || h === 'h5p.com' || /\.h5p\.com$/.test(h)) {
+      m = u.pathname.match(/^\/(?:node|h5p)\/(\d+)\/?$/);
+      if (m) { u = new URL(u.origin + '/h5p/embed/' + m[1]); i.src = u.href; i.origin = u.origin; }
+    }
+    if (/\/mod\/h5pactivity\//.test(u.pathname)) i.warn = 'Cette page de Moodle demande une connexion : utilisez « Partager › Intégrer » depuis la banque de contenus, ou un lien public.';
+    else if (!/embed|h5p|run|lumi/i.test(u.href)) i.warn = 'Vérifiez qu’il s’agit bien de l’adresse d’intégration de l’activité (elle contient souvent « embed » ou « h5p »).';
+    return i;
   }
 
   /* Vidéo : YouTube, Vimeo, Dailymotion, PeerTube, ou fichier .mp4/.webm */
@@ -237,6 +259,7 @@ window.MonAppRuntime = function (root, initial, opts) {
       arr(p.blocks).forEach(function (b) {
         var i = null;
         if (b.type === 'embed' && b.mode !== 'button') i = embedInfo(b.url);
+        else if (b.type === 'h5p' && b.mode !== 'button') i = h5pInfo(b.url);
         else if (b.type === 'video') i = videoInfo(b.url);
         else if (b.type === 'map') i = mapInfo(b.where);
         if (i && i.origin) out[i.origin] = 1;
@@ -254,7 +277,7 @@ window.MonAppRuntime = function (root, initial, opts) {
   }
 
   if (opts.helpersOnly) {
-    return { safeUrl: safeUrl, embedInfo: embedInfo, videoInfo: videoInfo, mapInfo: mapInfo, parseIframe: parseIframe, frameOrigins: frameOrigins, iconNames: iconNames, themeVars: themeVars, contrast: contrast, TEAMS: TEAMS };
+    return { safeUrl: safeUrl, embedInfo: embedInfo, h5pInfo: h5pInfo, videoInfo: videoInfo, mapInfo: mapInfo, parseIframe: parseIframe, frameOrigins: frameOrigins, iconNames: iconNames, themeVars: themeVars, contrast: contrast, TEAMS: TEAMS };
   }
 
   /* ------------------------------------------------------------------ texte enrichi (mini-Markdown sûr) */
@@ -274,7 +297,46 @@ window.MonAppRuntime = function (root, initial, opts) {
     }
     if (last < text.length) parent.appendChild(doc.createTextNode(text.slice(last)));
   }
+  /* Texte structuré produit par l'éditeur visuel : { b:[ {k:'p'|'ul'|'ol', al, r:[…] | i:[[…]]} ] } */
+  var TXK = { bleu: 1, cyan: 1, rouge: 1, orange: 1, vert: 1, gris: 1 }, HLK = { jaune: 1, vert: 1, rose: 1, bleu: 1 }, TRK = { cyan: 1, orange: 1, rose: 1, vert: 1, bleu: 1 }, SZK = { s: 1, l: 1, xl: 1 }, ALK = { center: 1, right: 1, justify: 1 };
+  function runs(rs, parent) {
+    arr(rs).forEach(function (r) {
+      if (!r) return;
+      if (r.br) { parent.appendChild(el('br')); return; }
+      var t = S(r.t); if (!t) return;
+      var out = doc.createTextNode(t), cls = [];
+      if (TXK[r.c]) cls.push('ma-c-' + r.c);
+      if (HLK[r.h]) cls.push('ma-h-' + r.h);
+      if (SZK[r.s]) cls.push('ma-s-' + r.s);
+      if (r.u) cls.push('ma-u');
+      if (TRK[r.uc]) cls.push('ma-t-' + r.uc);
+      if (cls.length) out = el('span', { class: cls.join(' ') }, out);
+      if (r.i) out = el('em', null, out);
+      if (r.b) out = el('strong', null, out);
+      var h = r.a ? safeUrl(r.a) : null;
+      if (h) out = link(h, out);
+      parent.appendChild(out);
+    });
+  }
+  function richDoc(d) {
+    var box = el('div', { class: 'ma-rich' });
+    arr(d.b).forEach(function (blk) {
+      if (!blk) return;
+      var al = ALK[blk.al] ? 'ma-al-' + blk.al : null;
+      if (blk.k === 'ul' || blk.k === 'ol') {
+        var list = el(blk.k, { class: al });
+        arr(blk.i).forEach(function (it) { var li = el('li'); runs(it, li); if (li.childNodes.length) list.appendChild(li); });
+        if (list.childNodes.length) box.appendChild(list);
+      } else {
+        var p = el('p', { class: al });
+        runs(blk.r, p);
+        if (p.childNodes.length) box.appendChild(p);
+      }
+    });
+    return box;
+  }
   function rich(text) {
+    if (text && typeof text === 'object' && Array.isArray(text.b)) return richDoc(text);
     var box = el('div', { class: 'ma-rich' });
     S(text).replace(/\r/g, '').split(/\n{2,}/).forEach(function (blk) {
       var lines = blk.split('\n').filter(function (l) { return l.trim() !== ''; });
@@ -332,8 +394,9 @@ window.MonAppRuntime = function (root, initial, opts) {
   function pageById(id) { return arr(app.pages).filter(function (p) { return p.id === id; })[0]; }
   function pageHref(id) { return pageById(id) ? '#/' + id : null; }
 
-  function frame(src, title, height, ratio) {
+  function frame(src, title, height, ratio, h5p) {
     var f = el('iframe', {
+      'data-h5p': h5p ? '1' : null,
       src: src, title: title || 'Contenu intégré', loading: 'lazy', referrerpolicy: 'strict-origin-when-cross-origin',
       allow: 'fullscreen', allowfullscreen: true,
       sandbox: 'allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads',
@@ -341,6 +404,19 @@ window.MonAppRuntime = function (root, initial, opts) {
     });
     return el('div', { class: 'ma-frame' + (ratio ? ' ma-ratio' : '') }, f);
   }
+  /* Les activités H5P demandent à la page de les redimensionner (postMessage « h5p ») */
+  win.addEventListener('message', function (e) {
+    var d = e.data;
+    if (!d || d.context !== 'h5p' || !e.source) return;
+    var f = null;
+    arr(Array.prototype.slice.call(doc.querySelectorAll('iframe[data-h5p]'))).forEach(function (x) { if (x.contentWindow === e.source) f = x; });
+    if (!f) return;
+    try {
+      if (d.action === 'hello') e.source.postMessage({ context: 'h5p', action: 'ready' }, '*');
+      else if (d.action === 'prepareResize') e.source.postMessage({ context: 'h5p', action: 'resizePrepared' }, '*');
+      else if (d.action === 'resize' && +d.scrollHeight > 0) f.style.height = Math.min(4000, Math.ceil(+d.scrollHeight)) + 'px';
+    } catch (err) { /* ignore */ }
+  });
   function warn(msg) { return opts.preview ? el('p', { class: 'ma-warn', text: 'Attention : ' + msg }) : null; }
 
   var R = {
@@ -460,6 +536,15 @@ window.MonAppRuntime = function (root, initial, opts) {
         el('p', { class: 'ma-sub' }, [link(i.open, 'Ouvrir dans un nouvel onglet')])]);
       return wrap;
     },
+    h5p: function (b) {
+      var i = h5pInfo(b.url);
+      if (!i) return warn('activité H5P : collez l’adresse d’intégration (https://…) ou le code « <iframe …> » fourni par le site qui héberge l’activité.');
+      if (b.mode === 'button') return link(i.open, S(b.label) || 'Ouvrir l’activité', 'ma-btn ma-full');
+      var wrap = el('div');
+      add(wrap, [frame(i.src, b.title || 'Activité H5P', parseInt(b.height, 10) || i.height || 500, false, true),
+        el('p', { class: 'ma-sub' }, [link(i.open, 'Ouvrir l’activité dans un nouvel onglet')])]);
+      return wrap;
+    },
     links: function (b) {
       var ul = el('ul', { class: 'ma-links' });
       arr(b.items).forEach(function (it) {
@@ -489,8 +574,25 @@ window.MonAppRuntime = function (root, initial, opts) {
     separator: function (b) { return b.style === 'space' ? el('div', { class: 'ma-space', 'aria-hidden': 'true' }) : el('hr', { class: 'ma-sep' }); }
   };
 
-  /* ------------------------------------------------------------------ page, onglets, en-tête */
-  function tabbed() { return arr(app.pages).filter(function (p, i) { return i === 0 || p.tab !== false; }); }
+  /* ------------------------------------------------------------------ page, onglets, menu, en-tête */
+  var menuOpen = false;
+  function topPages() { return arr(app.pages).filter(function (p) { return !p.parent; }); }
+  /* Barre du bas : 4 pages au plus (l'accueil en fait toujours partie) */
+  function barPages() { return topPages().filter(function (p, i) { return i === 0 || p.tab !== false; }).slice(0, 4); }
+  /* Menu hamburger : toutes les pages principales, jamais les sous-pages */
+  function menuPages() { return topPages().filter(function (p, i) { return i === 0 || p.menu !== false; }); }
+
+  function burger(size) {
+    var s = doc.createElementNS(NS, 'svg');
+    s.setAttribute('class', 'ma-svg'); s.setAttribute('width', String(size)); s.setAttribute('height', String(size));
+    s.setAttribute('viewBox', '0 0 24 24'); s.setAttribute('aria-hidden', 'true'); s.setAttribute('focusable', 'false');
+    [5, 10.8, 16.6].forEach(function (y) {
+      var r = doc.createElementNS(NS, 'rect');
+      r.setAttribute('x', '3.5'); r.setAttribute('y', String(y)); r.setAttribute('width', '17'); r.setAttribute('height', '2.6'); r.setAttribute('rx', '0.6');
+      s.appendChild(r);
+    });
+    return s;
+  }
 
   function renderHeader() {
     var logo = imgSrc(app.logo);
@@ -499,6 +601,13 @@ window.MonAppRuntime = function (root, initial, opts) {
       logo ? el('img', { class: 'ma-logo', src: logo, alt: '' }) : el('span', { class: 'ma-logo ma-logo-i', 'aria-hidden': 'true', text: initials }),
       el('div', { class: 'ma-head-t' }, [el('b', { text: S(app.title) || 'Mon appli' }), app.subtitle ? el('small', { text: S(app.subtitle) }) : null])
     ]);
+  }
+
+  function setMenu(open, refocus) {
+    menuOpen = !!open;
+    render();
+    var t = doc.querySelector(open ? '.ma-menu a' : '.ma-tab-menu');
+    if (t && (open || refocus)) t.focus();
   }
 
   function render() {
@@ -510,16 +619,20 @@ window.MonAppRuntime = function (root, initial, opts) {
     doc.documentElement.style.colorScheme = app.theme && app.theme.dark ? 'dark' : 'light';
     if (!pageById(current)) current = app.pages[0].id;
     var page = pageById(current), home = app.pages[0];
-    var tabs = tabbed(), inTabs = tabs.indexOf(page) > -1, showTabs = tabs.length > 1;
+    var parent = page.parent ? pageById(page.parent) : null, activeTop = parent || page;
+    var bar = barPages(), menu = menuPages(), showBar = menu.length > 1 || bar.length > 1;
+    if (!showBar) menuOpen = false;
+    doc.body.style.overflow = menuOpen ? 'hidden' : '';
     doc.title = (page === home ? '' : S(page.title) + ' – ') + (S(app.title) || 'Mon appli');
 
-    var main = el('main', { class: 'ma-main' + (showTabs ? '' : ' ma-notabs'), id: 'ma-main', tabindex: '-1' });
-    if (!inTabs && page !== home) {
+    var main = el('main', { class: 'ma-main' + (showBar ? '' : ' ma-notabs'), id: 'ma-main', tabindex: '-1' });
+    if (page !== home && bar.indexOf(page) < 0) {
+      var target = parent || home;
       main.appendChild(el('a', {
-        class: 'ma-back', href: '#/' + home.id, onclick: function (e) {
+        class: 'ma-back', href: '#/' + target.id, onclick: function (e) {
           if (navCount > 0) { e.preventDefault(); win.history.back(); }
         }
-      }, [ico('arrow-left', 16), 'Retour']));
+      }, [ico('arrow-left', 16), parent ? 'Retour : ' + S(parent.title) : 'Retour']));
     }
     if (page.showTitle !== false && S(page.title)) main.appendChild(el('h1', { class: 'ma-page-h', text: S(page.title) }));
     arr(page.blocks).forEach(function (b) {
@@ -533,13 +646,24 @@ window.MonAppRuntime = function (root, initial, opts) {
       el('a', { class: 'ma-skip', href: '#ma-main', onclick: function (e) { e.preventDefault(); main.focus(); } }, 'Aller au contenu'),
       renderHeader(), main
     ]);
-    if (showTabs) {
+    if (showBar) {
       var nav = el('nav', { class: 'ma-tabs', 'aria-label': 'Navigation principale' });
-      tabs.forEach(function (p) {
-        nav.appendChild(el('a', { class: 'ma-tab', href: '#/' + p.id, 'aria-current': p === page ? 'page' : null }, [
+      bar.forEach(function (p) {
+        nav.appendChild(el('a', { class: 'ma-tab', href: '#/' + p.id, 'aria-current': p === activeTop ? 'page' : null }, [
           ico(p.icon || 'file-text', 22), el('div', { text: S(p.title) })
         ]));
       });
+      nav.appendChild(el('button', { type: 'button', class: 'ma-tab ma-tab-menu', 'aria-haspopup': 'true', 'aria-expanded': String(menuOpen), 'aria-controls': 'ma-menu', onclick: function () { setMenu(!menuOpen, true); } }, [burger(22), el('div', { text: 'Menu' })]));
+      if (menuOpen) {
+        shell.appendChild(el('div', { class: 'ma-menu-scrim', onclick: function () { setMenu(false, true); } }));
+        shell.appendChild(el('nav', { class: 'ma-menu', id: 'ma-menu', 'aria-label': 'Toutes les pages' }, el('ul', null, menu.map(function (p) {
+          return el('li', null, el('a', {
+            href: '#/' + p.id, 'aria-current': p === activeTop ? 'page' : null, onclick: function (e) {
+              if (win.location.hash === '#/' + p.id || (opts.preview && p === page)) { e.preventDefault(); setMenu(false, true); } else menuOpen = false;
+            }
+          }, [ico(p.icon || 'file-text', 22), el('span', { text: S(p.title) })]));
+        }))));
+      }
       shell.appendChild(nav);
     }
     root.textContent = '';
@@ -550,7 +674,7 @@ window.MonAppRuntime = function (root, initial, opts) {
   function route(first) {
     var m = S(win.location.hash).match(/^#\/([\w-]+)/), id = m && pageById(m[1]) ? m[1] : (app && app.pages[0] ? app.pages[0].id : null);
     var changed = id !== current;
-    current = id;
+    current = id; menuOpen = false;
     render();
     if (changed && !first) { win.scrollTo(0, 0); }
   }
@@ -584,10 +708,21 @@ window.MonAppRuntime = function (root, initial, opts) {
       if (!a) return;
       var m = a.getAttribute('href').match(/^#\/([\w-]+)/);
       e.preventDefault();
-      if (m && pageById(m[1])) { current = m[1]; render(); win.scrollTo(0, 0); }
+      if (m && pageById(m[1])) { current = m[1]; menuOpen = false; render(); win.scrollTo(0, 0); }
     });
     try { win.parent.postMessage({ type: 'preview-ready' }, '*'); } catch (e) { /* ignore */ }
   }
+  doc.addEventListener('keydown', function (e) {
+    if (!menuOpen) return;
+    if (e.key === 'Escape') { e.preventDefault(); setMenu(false, true); return; }
+    if (e.key === 'Tab') {
+      var f = Array.prototype.slice.call(doc.querySelectorAll('.ma-menu a, .ma-tab-menu'));
+      if (!f.length) return;
+      var i0 = f.indexOf(doc.activeElement);
+      if (e.shiftKey && i0 <= 0) { e.preventDefault(); f[f.length - 1].focus(); }
+      else if (!e.shiftKey && (i0 === f.length - 1 || i0 < 0)) { e.preventDefault(); f[0].focus(); }
+    }
+  });
   if (initial) setApp(initial);
   return { setApp: setApp };
 };

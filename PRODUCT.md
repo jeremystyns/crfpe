@@ -29,7 +29,7 @@ Usage professionnel interne au CRFPE, proposé aux collègues. Le constructeur e
 
 ## Capabilities and Constraints
 
-- Éditeur par blocs (15 types), pages (onglets ou cachées), thèmes, aperçu en direct, export HTML autonome avec CSP stricte.
+- Éditeur par blocs (16 types dont l'activité H5P intégrée), pages avec sous-pages (un seul niveau), barre du bas limitée à 4 pages et menu hamburger, éditeur de texte visuel, thèmes, aperçu en direct, export HTML autonome avec CSP stricte.
 - Contraintes : aucune requête réseau, aucune bibliothèque externe, polices et icônes embarquées localement, aucun `innerHTML` avec donnée variable, contenu entièrement en français.
 - Décidé avec l'auteur : couleurs = les 4 équipes du design system CRFPE (Institutionnel, EJE, Formation Continue, Espace Sésame) plus une couleur libre ; mode sombre conservé comme variante assumée (non issue de la charte) ; aucun emoji, pictogrammes du jeu d'icônes CRFPE.
 

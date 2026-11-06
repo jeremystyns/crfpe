@@ -3,7 +3,8 @@
 (function () {
   function id() { return Math.random().toString(36).slice(2, 8); }
   function B(type, props) { return Object.assign({ id: id(), type: type }, props); }
-  function P(slug, title, icon, blocks, extra) { return Object.assign({ id: slug, title: title, icon: icon, tab: true, showTitle: true, blocks: blocks }, extra || {}); }
+  function P(slug, title, icon, blocks, extra) { return Object.assign({ id: slug, title: title, icon: icon, tab: true, menu: true, parent: '', showTitle: true, blocks: blocks }, extra || {}); }
+  function SUB(slug, parent, title, blocks) { return P(slug, title, '', blocks, { tab: false, menu: false, parent: parent }); }
   function theme(team, dark) { return { team: team, primary: '#004c8e', accent: '#41c8f4', dark: !!dark }; }
   function inDays(days) {
     var d = new Date(); d.setDate(d.getDate() + days);
@@ -35,11 +36,21 @@
             P('formations', 'Formations', 'graduation-cap', [
               B('text', { text: 'Les parcours proposés par le centre. Ouvrez une carte pour en savoir plus.' }),
               B('cards', { style: 'grille', items: [
-                { title: 'Éducateur de jeunes enfants', text: 'Diplôme d’État · trois ans', tag: 'Initiale', image: '', page: '', url: '' },
-                { title: 'Auxiliaire de puériculture', text: 'Diplôme d’État · dix mois', tag: 'Initiale', image: '', page: '', url: '' },
+                { title: 'Éducateur de jeunes enfants', text: 'Diplôme d’État · trois ans', tag: 'Initiale', image: '', page: 'formation-eje', url: '' },
+                { title: 'Auxiliaire de puériculture', text: 'Diplôme d’État · dix mois', tag: 'Initiale', image: '', page: 'formation-ap', url: '' },
                 { title: 'Accompagnement des équipes', text: 'Stages courts · sur mesure', tag: 'Continue', image: '', page: '', url: '' },
                 { title: 'Remise à niveau numérique', text: 'Modules de quarante heures', tag: 'Continue', image: '', page: '', url: '' }
               ] })
+            ]),
+            SUB('formation-eje', 'formations', 'Éducateur de jeunes enfants', [
+              B('callout', { tone: 'info', title: 'En bref', text: 'Diplôme d’État de niveau 6, **trois ans**, en voie directe, en apprentissage ou en formation continue.' }),
+              B('title', { text: 'Le parcours', level: 2 }),
+              B('text', { text: 'Alternance de cours et de stages. Chaque stagiaire est suivi·e par un·e formateur·rice référent·e.\n- Quatre domaines de formation\n- Stages sur les trois années\n- Épreuves de certification en fin de parcours' }),
+              B('button', { label: 'Voir les dates de la réunion de rentrée', kind: 'page', page: 'agenda', url: '', mail: '', tel: '', style: 'outline', width: 'full' })
+            ]),
+            SUB('formation-ap', 'formations', 'Auxiliaire de puériculture', [
+              B('callout', { tone: 'info', title: 'En bref', text: 'Diplôme d’État de niveau 4, **dix mois**, en voie directe ou en formation continue.' }),
+              B('text', { text: 'Une formation courte et professionnalisante, centrée sur les soins et l’accompagnement des enfants de la naissance à l’adolescence.' })
             ]),
             P('agenda', 'Agenda', 'calendar', [
               B('events', { hidePast: true, calendar: true, items: [
@@ -61,7 +72,7 @@
                 { q: 'Où déjeuner sur place ?', a: 'Une salle de pause équipée de micro-ondes est ouverte de 12 h à 13 h 30.\nUn restaurant se trouve à cinq minutes à pied.' },
                 { q: 'Comment obtenir une attestation ?', a: 'Elle se demande à l’accueil et est remise sous trois jours ouvrés.' }
               ] })
-            ]),
+            ], { tab: false }),
             P('contact', 'Contact', 'phone', [
               B('contact', CONTACT),
               B('map', { where: LILLE, label: 'Plan d’accès' }),
@@ -124,14 +135,14 @@
             P('etape-1', 'Étape 1', 'puzzle-piece', [
               B('callout', { tone: 'info', title: 'Énigme', text: 'Je sonne mais je ne chante pas. Quand je me tais, le couloir se vide. Qui suis-je ?' }),
               go('J’ai trouvé : étape 2', 'etape-2')
-            ], { tab: false }),
+            ], { tab: false, menu: false }),
             P('etape-2', 'Étape 2', 'puzzle-piece', [
               B('callout', { tone: 'info', title: 'Énigme', text: 'On m’ouvre pour apprendre et on me ferme pour dormir. Je suis plein de mots sans jamais parler.' }),
               go('J’ai trouvé : dernière étape', 'bravo')
-            ], { tab: false }),
+            ], { tab: false, menu: false }),
             P('bravo', 'Bravo', 'trophy', [
               B('callout', { tone: 'ok', title: 'Parcours terminé', text: 'Présentez cet écran à l’accueil pour recevoir votre récompense.' })
-            ], { tab: false })
+            ], { tab: false, menu: false })
           ]
         };
       }

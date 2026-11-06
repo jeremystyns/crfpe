@@ -28,13 +28,26 @@ python3 -m http.server 8000      # puis ouvrir http://localhost:8000/
 | Famille | Blocs |
 |---|---|
 | Mise en avant | Bandeau d'accueil |
-| Texte et médias | Titre, Texte (gras, italique, listes, liens), Image (compressée automatiquement), Vidéo (YouTube, Vimeo, Dailymotion, PeerTube, .mp4), Encadré |
+| Texte et médias | Titre, Texte (éditeur visuel : gras, italique, souligné, taille, couleur, stabilo, trait de couleur, alignement, listes, liens, point médian), Image (compressée automatiquement), Vidéo (YouTube, Vimeo, Dailymotion, PeerTube, .mp4), Encadré |
 | Navigation | Bouton (page de l'appli, site, mail, téléphone), Liens et documents, Séparateur |
 | Listes | Cartes (liste, grille, portraits), Agenda (« Ajouter à mon agenda » .ics), Questions fréquentes, Compte à rebours |
 | Infos pratiques | Contact, Plan d'accès (OpenStreetMap, sans clé) |
-| Formulaires et contenus | Formulaire / contenu intégré : collez l'adresse **ou** le code `<iframe>` |
+| Formulaires et contenus | Formulaire / contenu intégré et **Activité H5P** : collez l'adresse **ou** le code `<iframe>` |
 
-Les pages peuvent être **dans la barre d'onglets** ou **cachées** (ouvertes par un bouton ou une carte : utile pour un parcours ou un jeu de piste).
+### Pages, barre du bas, menu et sous-pages
+
+- **Barre du bas** : 4 pages au plus (l'accueil en fait partie), à choisir parmi les pages créées (case « Afficher dans la barre du bas » dans les réglages de la page).
+- **Menu hamburger** (bouton « Menu », à droite de la barre) : montre toutes les pages principales.
+- **Sous-pages** : une page peut avoir des sous-pages, mais pas plus (un seul niveau). Bouton « + » à côté d'une page dans la liste, ou « Créer une sous-page pour cette carte » dans une carte : la sous-page est créée et reliée à la carte en un clic. Les sous-pages n'apparaissent ni dans la barre ni dans le menu ; elles s'ouvrent par une carte, un bouton ou un lien, avec un bouton « Retour ».
+- **Pages cachées** : décochez la barre et le menu ; on y accède par un bouton, une carte ou un lien (utile pour un jeu de piste).
+
+### Texte
+
+L'éditeur est **visuel** : on voit le texte tel qu'il sera, sans code. Le collage ne garde que le texte brut (pas de styles venus de Word). Les textes sont enregistrés sous forme de document structuré (jamais de HTML brut). Les anciens projets (Markdown) sont convertis automatiquement à l'ouverture.
+
+### Activité H5P
+
+Collez l'adresse ou le code « Embed » d'une activité créée ailleurs (H5P.org, Moodle, Éléa, WordPress…). L'activité doit s'ouvrir sans connexion. Son cadre se redimensionne tout seul (protocole H5P, sans script externe). Les résultats restent chez l'hébergeur : l'appli n'enregistre rien. L'import d'un fichier `.h5p` pour un usage hors ligne n'est pas inclus.
 
 ### Intégrer un formulaire
 
@@ -62,7 +75,8 @@ index.html            le constructeur
 css/builder.css       son apparence (charte CRFPE)
 js/runtime.js         moteur d'affichage : utilisé par l'aperçu ET recopié dans le fichier exporté
 js/runtime-css.js     styles de l'appli exportée (dans une chaîne, pour l'injecter dans l'export)
-js/builder.js         éditeur : blocs, pages, configuration, sauvegarde (IndexedDB), import/export
+js/builder.js         éditeur : blocs, pages et sous-pages, configuration, sauvegarde (IndexedDB), import/export
+js/rte.js             éditeur de texte visuel (barre de mise en forme, conversion vers le document structuré)
 js/templates.js       modèles d'appli (contenus fictifs)
 js/icons.js           58 pictogrammes du design system CRFPE (données, rendus en DOM)
 js/logo-data.js       logo CRFPE (RVB, 192 px) embarqué
@@ -71,6 +85,7 @@ fonts/                Mulish et Barlow (SIL OFL), voir fonts/LICENCES.md
 img/                  logo et favicon CRFPE
 PRODUCT.md, DESIGN.md contexte produit et système visuel (référence pour tout futur travail de design)
 tests/smoke.mjs       test de bout en bout (Playwright)
+tests/features.mjs    barre du bas, sous-pages, éditeur visuel, H5P
 ```
 
 **Pourquoi `runtime.js` est une fonction autonome ?** Elle est copiée telle quelle (`Function.prototype.toString`) dans le HTML exporté : l'aperçu et le résultat final utilisent donc exactement le même code. Elle ne doit dépendre de rien d'extérieur.
@@ -102,7 +117,7 @@ Navigation clavier complète (tout se fait aussi avec les boutons ↑ ↓ en plu
 
 ```bash
 npm install          # Playwright (une seule dépendance de développement)
-npm test
+npm test             # smoke.mjs ; puis : node tests/features.mjs
 ```
 
 ## Notes sur le design system CRFPE

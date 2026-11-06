@@ -117,11 +117,13 @@
   const LEGACY_EMOJI = { '🏠': 'building', '📚': 'graduation-cap', '📅': 'calendar', '🗓️': 'clock', '🗂️': 'folder', '📞': 'phone', '📍': 'map-marker', '👥': 'users', '👋': 'star', '🧩': 'puzzle-piece', '🏁': 'flag', '1️⃣': 'puzzle-piece', '2️⃣': 'puzzle-piece', '🏆': 'trophy', '📄': 'file-text', '🎓': 'graduation-cap' };
 
   /* ------------------------------------------------------------------ catalogue des blocs */
+  const MAX_BAR = 4;
   const OPT = {
     tone: [['info', 'Information'], ['warn', 'Attention'], ['ok', 'Réussite, bon à savoir'], ['alert', 'Urgent']],
-    pages: () => [['', 'Aucune page']].concat(app.pages.map((p) => [p.id, p.title]))
+    pages: () => [['', 'Aucune page']].concat(orderedPages().map((p) => [p.id, p.parent ? pageTitle(p.parent) + ' › ' + p.title : p.title]))
   };
-  const MD_HELP = 'Astuce : **gras**, *italique*, [texte du lien](https://…). Une ligne qui commence par « - » devient une liste.';
+  const RTE = window.AtelierRTE;
+  const RTE_HELP = 'Écrivez comme dans un traitement de texte. Le bouton « · » insère le point médian de l’écriture inclusive (étudiant·e·s).';
 
   const BLOCKS = {
     hero: {
@@ -145,9 +147,9 @@
     },
     text: {
       label: 'Texte', icon: 'file-text', group: 'Texte et médias', desc: 'Paragraphes, listes, liens, gras, italique.',
-      make: () => ({ text: '' }),
-      summary: (b) => b.text.replace(/\s+/g, ' ').slice(0, 60),
-      fields: [{ k: 'text', l: 'Texte', t: 'textarea', md: true, rows: 6, help: MD_HELP }]
+      make: () => ({ text: RTE.emptyDoc() }),
+      summary: (b) => RTE.docToPlain(b.text).slice(0, 60),
+      fields: [{ k: 'text', l: 'Texte', t: 'rich', help: RTE_HELP }]
     },
     image: {
       label: 'Image', icon: 'folder', group: 'Texte et médias', desc: 'Une photo, compressée automatiquement.',
@@ -176,12 +178,12 @@
     },
     callout: {
       label: 'Encadré', icon: 'lightbulb', group: 'Texte et médias', desc: 'Information importante, alerte ou bon à savoir.',
-      make: () => ({ tone: 'info', title: '', text: '' }),
-      summary: (b) => b.title || b.text.slice(0, 50),
+      make: () => ({ tone: 'info', title: '', text: RTE.emptyDoc() }),
+      summary: (b) => b.title || RTE.docToPlain(b.text).slice(0, 50),
       fields: [
         { k: 'tone', l: 'Type', t: 'select', o: OPT.tone },
         { k: 'title', l: 'Titre (facultatif)', t: 'text', ph: 'Ex : Rentrée' },
-        { k: 'text', l: 'Texte', t: 'textarea', md: true, rows: 3, help: MD_HELP }
+        { k: 'text', l: 'Texte', t: 'rich' }
       ]
     },
     button: {
@@ -234,7 +236,8 @@
             { k: 'tag', l: 'Étiquette (facultatif)', t: 'text', ph: 'Ex : Formatrice, Actualité' },
             { k: 'text', l: 'Description', t: 'textarea', rows: 2 },
             { k: 'image', l: 'Image (facultatif)', t: 'image', max: 480 },
-            { k: 'page', l: 'Ouvre une page de l’appli (facultatif)', t: 'page' },
+            { k: 'sp', l: 'Page ouverte par la carte', t: 'subpage', redraw: true, what: 'cette carte' },
+            { k: 'page', l: 'ou relier à une page existante', t: 'page' },
             { k: 'url', l: 'ou ouvre cette adresse (facultatif)', t: 'text', ph: 'https://…' }
           ]
         }
@@ -262,14 +265,14 @@
     },
     faq: {
       label: 'Questions fréquentes', icon: 'question-circle', group: 'Listes', desc: 'Questions et réponses repliables.',
-      make: () => ({ items: [{ q: 'Votre question ?', a: 'Votre réponse.' }] }),
+      make: () => ({ items: [{ q: 'Votre question ?', a: RTE.mdToDoc('Votre réponse.') }] }),
       summary: (b) => b.items.length + ' question' + (b.items.length > 1 ? 's' : ''),
       fields: [{
         k: 'items', t: 'items', l: 'Questions', add: 'Ajouter une question', itemTitle: (it) => it.q || 'Question',
-        make: () => ({ q: 'Nouvelle question ?', a: '' }),
+        make: () => ({ q: 'Nouvelle question ?', a: RTE.emptyDoc() }),
         fields: [
           { k: 'q', l: 'Question', t: 'text' },
-          { k: 'a', l: 'Réponse', t: 'textarea', md: true, rows: 3, help: MD_HELP }
+          { k: 'a', l: 'Réponse', t: 'rich' }
         ]
       }]
     },
@@ -305,6 +308,30 @@
           return H.mapInfo(b.where) ? { level: 'ok', t: 'Position reconnue.' } : { level: 'bad', t: 'Position non reconnue. Collez un lien OpenStreetMap, un lien Google Maps (avec @lat,lon) ou « 50.6292, 3.0573 ».' };
         } },
         { k: 'label', l: 'Légende', t: 'text' }
+      ]
+    },
+    h5p: {
+      label: 'Activité H5P', icon: 'trophy', group: 'Formulaires et contenus', desc: 'Exercice interactif créé ailleurs : H5P.org, Moodle, Éléa, WordPress…',
+      make: () => ({ url: '', title: '', mode: 'inline', label: 'Ouvrir l’activité', height: 500 }),
+      summary: (b) => (H.h5pInfo(b.url) ? 'Activité H5P' + (b.mode === 'button' ? ' (bouton)' : '') : 'Aucune adresse'),
+      fields: [
+        { t: 'note', title: 'Où trouver l’adresse de l’activité ?', items: [
+          'H5P.org ou H5P.com : ouvrez l’activité, cliquez sur « Embed » puis copiez le code.',
+          'Moodle ou Éléa : dans la banque de contenus, « Partager » puis « Intégrer ».',
+          'WordPress (extension H5P) : « Intégrer » sous l’activité, puis copiez le code.',
+          'Un autre hébergement : l’adresse d’intégration contient souvent « embed ».'
+        ], foot: 'L’activité doit s’ouvrir sans connexion. Les résultats des élèves restent chez l’hébergeur : l’appli ne les enregistre pas.' },
+        { k: 'url', l: 'Adresse ou code d’intégration', t: 'textarea', rows: 3, ph: 'https://h5p.org/h5p/embed/12345\nou <iframe src="https://…/embed/…"></iframe>', refresh: true,
+          status: (b) => {
+            if (!b.url.trim()) return { level: 'info', t: 'Collez l’adresse ou le code « Embed » de l’activité.' };
+            const i = H.h5pInfo(b.url);
+            if (!i) return { level: 'bad', t: 'Adresse non reconnue : elle doit commencer par https://' };
+            return { level: i.warn ? 'warn' : 'ok', t: 'Activité détectée sur ' + new URL(i.src).hostname + '.' + (i.warn ? ' ' + i.warn : '') };
+          } },
+        { k: 'mode', l: 'Affichage', t: 'select', refresh: true, o: [['inline', 'Dans la page (cadre intégré)'], ['button', 'Bouton qui ouvre dans un nouvel onglet']], help: 'La hauteur s’ajuste toute seule à l’activité.' },
+        { k: 'label', l: 'Texte du bouton', t: 'text', show: (b) => b.mode === 'button' },
+        { k: 'title', l: 'Titre de l’activité (accessibilité)', t: 'text', ph: 'Ex : Quiz sur les étapes du développement', show: (b) => b.mode !== 'button' },
+        { k: 'height', l: 'Hauteur de départ (pixels)', t: 'number', min: 200, max: 2000, step: 50, show: (b) => b.mode !== 'button' }
       ]
     },
     embed: {
@@ -349,26 +376,42 @@
       v: 2, id: str(raw.id) || uid(), title: str(raw.title) || 'Mon appli', subtitle: str(raw.subtitle), logo: str(raw.logo),
       lang: raw.lang === 'en' ? 'en' : 'fr', theme, pages: []
     };
-    const ids = [];
+    const ids = [], rawParent = {};
     raw.pages.forEach((p, i) => {
       if (!p || typeof p !== 'object') return;
       const id = newId(ids, /^[\w-]+$/.test(str(p.id)) ? p.id : p.title);
-      ids.push(id);
+      ids.push(id); rawParent[id] = str(p.parent);
       let ic = str(p.icon);
       if (!ICONS[ic]) ic = LEGACY_EMOJI[ic] || '';
-      const page = { id, title: str(p.title) || 'Page ' + (i + 1), icon: ic, tab: p.tab !== false, showTitle: p.showTitle !== false, blocks: [] };
+      const tab = p.tab !== false;
+      const page = { id, title: str(p.title) || 'Page ' + (i + 1), icon: ic, tab, menu: p.menu !== undefined ? !!p.menu : tab, parent: '', showTitle: p.showTitle !== false, blocks: [] };
       (Array.isArray(p.blocks) ? p.blocks : []).forEach((b) => {
         if (!b || !BLOCKS[b.type]) return;
         const nb = Object.assign({}, BLOCKS[b.type].make(), b, { id: str(b.id) || uid(), type: b.type });
-        BLOCKS[b.type].fields.filter((f) => f.t === 'items').forEach((f) => {
-          nb[f.k] = (Array.isArray(nb[f.k]) ? nb[f.k] : []).filter((x) => x && typeof x === 'object').map((x) => Object.assign({}, f.make(), x));
+        const fix = (obj, fields) => fields.forEach((f) => {
+          if (f.t === 'rich') { const v = obj[f.k]; obj[f.k] = typeof v === 'string' ? RTE.mdToDoc(v) : (v && Array.isArray(v.b) ? v : RTE.emptyDoc()); }
+          if (f.t === 'items') obj[f.k] = (Array.isArray(obj[f.k]) ? obj[f.k] : []).filter((x) => x && typeof x === 'object').map((x) => { const it = Object.assign({}, f.make(), x); fix(it, f.fields); return it; });
         });
+        fix(nb, BLOCKS[b.type].fields);
         page.blocks.push(nb);
       });
       a.pages.push(page);
     });
-    if (!a.pages.length) a.pages.push({ id: 'accueil', title: 'Accueil', icon: 'building', tab: true, showTitle: true, blocks: [] });
-    a.pages[0].tab = true;
+    if (!a.pages.length) a.pages.push({ id: 'accueil', title: 'Accueil', icon: 'building', tab: true, menu: true, parent: '', showTitle: true, blocks: [] });
+    // Sous-pages : un seul niveau, jamais l'accueil ; un parent invalide ou lui-même sous-page rend la page principale
+    a.pages.forEach((p, i) => {
+      const par = rawParent[p.id];
+      const target = par && i > 0 ? a.pages.find((x) => x.id === par) : null;
+      if (target && target !== p && !rawParent[target.id]) { p.parent = target.id; p.tab = false; p.menu = false; }
+    });
+    // Barre du bas : 4 pages au plus, l'accueil en fait toujours partie
+    a.pages[0].tab = true; a.pages[0].menu = true;
+    let bar = 0;
+    a.pages.forEach((p) => { if (p.parent) return; if (p.tab) { bar++; if (bar > MAX_BAR) p.tab = false; } if (p.tab) p.menu = true; });
+    // Chaque sous-page suit sa page principale
+    const ordered = [];
+    a.pages.filter((p) => !p.parent).forEach((t) => { ordered.push(t); a.pages.filter((k) => k.parent === t.id).forEach((k) => ordered.push(k)); });
+    a.pages = ordered;
     return a;
   }
 
@@ -550,10 +593,20 @@
         ctl = el('input', { id, type: 'checkbox', checked: !!obj[def.k], onchange: (e) => { obj[def.k] = e.target.checked; fire(true); } });
         break;
       case 'image': ctl = imageField(def, obj, onChange); break;
+      case 'rich':
+        ctl = RTE.create({ value: obj[def.k], label: def.l, placeholder: def.ph, toast, onChange: (d) => { obj[def.k] = d; fire(); } });
+        break;
+      case 'note':
+        return el('div', { class: 'note-box' }, [
+          el('p', { class: 'note-t', text: def.title }),
+          el('ul', null, def.items.map((t) => el('li', { text: t }))),
+          def.foot ? el('p', { class: 'help', text: def.foot }) : null
+        ]);
+      case 'subpage': return subpageField(def, obj, onChange);
       case 'items': return itemsEditor(def, obj, onChange);
       default: ctl = el('span');
     }
-    const label = def.l ? el('label', { for: def.t === 'image' ? null : id, text: def.l }) : null;
+    const label = def.l ? el('label', { for: def.t === 'image' || def.t === 'rich' ? null : id, text: def.l }) : null;
     const help = def.help ? el('p', { class: 'help', text: def.help }) : null;
     if (def.status) { statusEl = el('p', { class: 'status', role: 'status' }); updateStatus(); }
     return def.t === 'checkbox'
@@ -580,7 +633,7 @@
             mini('arrow-down', 'Descendre', () => move(i, i + 1), i === arr().length - 1),
             mini('trash', 'Supprimer', () => { arr().splice(i, 1); open = -1; draw(); onChange(def, true); })
           ])]),
-          el('div', { class: 'item-body' }, def.fields.map((f) => field(f, it, (fd, imm) => { sum.textContent = def.itemTitle(it); onChange(def, imm); })))
+          el('div', { class: 'item-body' }, def.fields.map((f) => field(f, it, (fd, imm) => { sum.textContent = def.itemTitle(it); onChange(def, imm); if (fd.redraw) { open = i; draw(); } })))
         ]);
         det.addEventListener('toggle', () => { if (det.open) open = i; else if (open === i) open = -1; });
         list.appendChild(det);
@@ -696,24 +749,59 @@
     return card;
   }
 
-  /* ------------------------------------------------------------------ colonne de gauche : pages */
+  /* ------------------------------------------------------------------ colonne de gauche : pages et sous-pages */
+  const kidsOf = (id) => app.pages.filter((p) => p.parent === id);
+  const pageById = (id) => app.pages.find((p) => p.id === id);
+  const pageTitle = (id) => { const p = pageById(id); return p ? p.title : ''; };
+  function orderedPages() {
+    const out = [];
+    app.pages.filter((p) => !p.parent).forEach((t) => { out.push(t); kidsOf(t.id).forEach((k) => out.push(k)); });
+    return out;
+  }
+  const relayout = () => { app.pages = orderedPages(); };
+  const barCount = () => app.pages.filter((p, i) => !p.parent && (i === 0 || p.tab)).length;
+  const isHome = (p) => app.pages[0] === p;
+
   function renderPagesList() {
     const ul = $('#pages-list'); ul.replaceChildren();
-    app.pages.forEach((p, i) => {
-      const sel = p.id === currentPage().id;
-      ul.appendChild(el('li', { class: 'page-row' + (sel ? ' sel' : ''), 'data-id': p.id }, [
-        grip(i === 0),
+    const cur = currentPage();
+    orderedPages().forEach((p) => {
+      const sub = !!p.parent, sel = p.id === cur.id;
+      const badge = sub ? null : (p.tab ? el('span', { class: 'pg-badge on', title: 'Affichée dans la barre du bas', text: 'barre' }) :
+        (p.menu === false ? el('span', { class: 'pg-badge', title: 'Page cachée : on y accède par un bouton, une carte ou un lien', text: 'cachée' }) : null));
+      ul.appendChild(el('li', { class: 'page-row' + (sub ? ' sub' : '') + (sel ? ' sel' : ''), 'data-id': p.id }, [
+        grip(isHome(p)),
         el('button', { type: 'button', class: 'page-btn', 'aria-current': sel ? 'true' : null, onclick: () => selectPage(p.id) }, [
-          icon(p.icon || 'file-text', 18, 'pg-ico'), el('span', { class: 'pg-t', text: p.title }),
-          p.tab === false ? el('span', { class: 'pg-hidden', title: 'Page cachée : on y accède par un bouton ou une carte', text: 'cachée' }) : null
-        ])
+          icon(sub ? 'chevron-right' : (p.icon || 'file-text'), sub ? 12 : 18, 'pg-ico'), el('span', { class: 'pg-t', text: p.title }), badge
+        ]),
+        sub ? null : mini('plus', 'Ajouter une sous-page à « ' + p.title + ' »', () => { const sp = addSubPage(p); if (sp) { selectPage(sp.id); const t = $('#pg-title'); if (t) { t.focus(); t.select(); } } })
       ]));
     });
+    $('#bar-info').textContent = 'Barre du bas : ' + barCount() + ' page' + (barCount() > 1 ? 's' : '') + ' sur ' + MAX_BAR + '. Le menu liste toutes les pages principales.';
   }
+  /* Glisser une page : une page principale entraîne ses sous-pages ; une sous-page reste dans sa page principale */
   sortable($('#pages-list'), 'li.page-row', '.grip', (from, to) => {
-    if (from === 0 || to === 0) { toast('La première page est la page d’accueil.'); return; }
-    const [x] = app.pages.splice(from, 1); app.pages.splice(to, 0, x);
-    renderPagesList(); changed({ now: true });
+    const flat = orderedPages(), moved = flat[from];
+    if (!moved || isHome(moved)) { toast('La première page est la page d’accueil.'); return; }
+    const rest = flat.filter((x) => x !== moved), ref = rest[to] || null;
+    if (!moved.parent) {
+      let before = ref ? (ref.parent ? pageById(ref.parent) : ref) : null;
+      const tops = app.pages.filter((x) => !x.parent && x !== moved);
+      let at = before ? tops.indexOf(before) : tops.length;
+      if (at < 1) at = 1;
+      tops.splice(at, 0, moved);
+      app.pages = tops.flatMap((t) => [t].concat(kidsOf(t.id)));
+    } else {
+      const sib = kidsOf(moved.parent).filter((x) => x !== moved);
+      const prev = rest[to - 1] || null;
+      let at;
+      if (ref && ref.parent === moved.parent) at = sib.indexOf(ref);
+      else if (prev && (prev.parent === moved.parent || prev.id === moved.parent)) at = prev.id === moved.parent ? 0 : sib.length;
+      else { toast('Une sous-page reste dans sa page principale.'); renderPagesList(); return; }
+      sib.splice(at, 0, moved);
+      app.pages = app.pages.filter((x) => !x.parent).flatMap((t) => [t].concat(t.id === moved.parent ? sib : kidsOf(t.id)));
+    }
+    renderPagesList(); renderPageSettings(); changed({ now: true });
   });
 
   function selectPage(id) {
@@ -721,58 +809,144 @@
     renderPagesList(); renderPageSettings(); renderBlocks(); schedulePreview();
   }
 
+  /* Sous-page : un seul niveau. Retourne la page créée, ou null si la page parente est déjà une sous-page. */
+  function addSubPage(parent, title) {
+    if (parent.parent) { toast('Une sous-page ne peut pas avoir de sous-pages.'); return null; }
+    const t = title || 'Nouvelle sous-page';
+    const p = { id: newId(app.pages.map((x) => x.id), t), title: t, icon: '', tab: false, menu: false, parent: parent.id, showTitle: true, blocks: [] };
+    app.pages.push(p); relayout(); changed({ now: true });
+    return p;
+  }
+
+  /* Champ « page ouverte par la carte » : crée la sous-page en un clic et la relie à la carte */
+  function subpageField(def, obj, onChange) {
+    const wrap = el('div', { class: 'field' });
+    const cur = currentPage();
+    const linked = obj.page ? pageById(obj.page) : null;
+    wrap.appendChild(el('label', { text: def.l }));
+    if (linked) {
+      wrap.appendChild(el('div', { class: 'sub-linked' }, [
+        icon('check-circle', 16),
+        el('span', { text: 'Ouvre « ' + (linked.parent ? pageTitle(linked.parent) + ' › ' : '') + linked.title + ' »' }),
+        btn('Modifier cette page', null, { class: 'btn small', onclick: () => selectPage(linked.id) })
+      ]));
+    } else if (cur.parent) {
+      wrap.appendChild(el('p', { class: 'help', text: 'Cette page est déjà une sous-page : elle ne peut pas en contenir d’autres. Reliez ' + def.what + ' à une page existante avec la liste ci-dessous.' }));
+    } else {
+      wrap.appendChild(btn('Créer une sous-page pour ' + def.what, 'plus', { class: 'btn small', onclick: () => {
+        const sp = addSubPage(cur, obj.title || obj.label || 'Nouvelle sous-page');
+        if (!sp) return;
+        obj.page = sp.id; obj.url = '';
+        renderPagesList(); onChange(def, true); toast('Sous-page créée : elle s’ouvre en cliquant sur ' + def.what + '.', 'ok');
+      } }));
+      wrap.appendChild(el('p', { class: 'help', text: 'La sous-page apparaît sous « ' + cur.title + ' » dans la liste des pages, mais pas dans le menu de l’appli.' }));
+    }
+    return wrap;
+  }
+
+  function moveSibling(p, dir) {
+    if (p.parent) {
+      const sib = kidsOf(p.parent), i = sib.indexOf(p), j = i + dir;
+      if (j < 0 || j >= sib.length) return;
+      sib.splice(i, 1); sib.splice(j, 0, p);
+      app.pages = app.pages.filter((x) => !x.parent).flatMap((t) => [t].concat(t.id === p.parent ? sib : kidsOf(t.id)));
+    } else {
+      const tops = app.pages.filter((x) => !x.parent), i = tops.indexOf(p), j = i + dir;
+      if (j < 1 || j >= tops.length) return;
+      tops.splice(i, 1); tops.splice(j, 0, p);
+      app.pages = tops.flatMap((t) => [t].concat(kidsOf(t.id)));
+    }
+    renderPagesList(); renderPageSettings(); changed({ now: true });
+  }
+
+  function setParent(p, parentId) {
+    if (parentId) {
+      const t = pageById(parentId);
+      if (!t || t.parent || kidsOf(p.id).length || isHome(p)) return;
+      p.parent = parentId; p.tab = false; p.menu = false;
+    } else { p.parent = ''; p.menu = true; p.tab = false; }
+    relayout(); selectPage(p.id); changed({ now: true });
+  }
+
   function renderPageSettings() {
-    const p = currentPage(), idx = app.pages.indexOf(p), host = $('#page-settings');
+    const p = currentPage(), host = $('#page-settings'), home = isHome(p), sub = !!p.parent, hasKids = kidsOf(p.id).length > 0;
     host.replaceChildren();
-    const refreshList = () => renderPagesList();
-    const iconBtn = el('span', { class: 'cur-ico' }, icon(p.icon || 'file-text', 20));
+    const refresh = () => { renderPagesList(); renderPageSettings(); };
     host.appendChild(el('div', { class: 'row' }, [
       el('div', { class: 'field grow' }, [
-        el('label', { for: 'pg-title', text: 'Nom de la page' }),
-        el('input', { id: 'pg-title', type: 'text', value: p.title, oninput: (e) => { p.title = e.target.value; refreshList(); changed(); } })
+        el('label', { for: 'pg-title', text: sub ? 'Nom de la sous-page' : 'Nom de la page' }),
+        el('input', { id: 'pg-title', type: 'text', value: p.title, oninput: (e) => { p.title = e.target.value; renderPagesList(); changed(); } })
       ])
     ]));
-    const grid = el('div', { class: 'icon-grid', role: 'group', 'aria-label': 'Pictogrammes' });
-    Object.keys(ICON_LABELS).forEach((n) => {
-      if (!ICONS[n]) return;
-      grid.appendChild(el('button', { type: 'button', class: 'icon-opt' + (p.icon === n ? ' sel' : ''), title: ICON_LABELS[n], 'aria-label': ICON_LABELS[n], 'aria-pressed': String(p.icon === n),
-        onclick: () => { p.icon = n; refreshList(); renderPageSettings(); changed({ now: true }); } }, icon(n, 20)));
-    });
-    host.appendChild(el('details', { class: 'icon-pick' }, [
-      el('summary', null, [iconBtn, el('span', { text: 'Pictogramme de la page' }), icon('chevron-down', 12, 'chev')]),
-      grid
-    ]));
-    host.appendChild(el('div', { class: 'checks' }, [
-      el('label', { class: 'check' }, [el('input', { type: 'checkbox', checked: p.tab !== false, disabled: idx === 0, onchange: (e) => { p.tab = e.target.checked; refreshList(); renderPageSettings(); changed({ now: true }); } }),
-        el('span', { text: idx === 0 ? 'Page d’accueil (toujours dans la barre d’onglets)' : 'Afficher dans la barre d’onglets' })]),
-      el('label', { class: 'check' }, [el('input', { type: 'checkbox', checked: p.showTitle !== false, onchange: (e) => { p.showTitle = e.target.checked; changed({ now: true }); } }),
-        el('span', { text: 'Afficher le nom de la page en titre' })])
-    ]));
-    if (idx !== 0 && p.tab === false) host.appendChild(el('p', { class: 'help', text: 'Page cachée : les visiteurs l’atteignent par un bouton, une carte ou un lien. Pratique pour un parcours ou une énigme.' }));
+    if (sub) {
+      host.appendChild(el('p', { class: 'status info' }, [icon('info-circle', 16), el('span', { text: 'Sous-page de « ' + pageTitle(p.parent) + ' ». On l’ouvre depuis un bouton, une carte ou un lien ; elle n’apparaît pas dans le menu de l’appli.' })]));
+    } else {
+      const grid = el('div', { class: 'icon-grid', role: 'group', 'aria-label': 'Pictogrammes' });
+      Object.keys(ICON_LABELS).forEach((n) => {
+        if (!ICONS[n]) return;
+        grid.appendChild(el('button', { type: 'button', class: 'icon-opt' + (p.icon === n ? ' sel' : ''), title: ICON_LABELS[n], 'aria-label': ICON_LABELS[n], 'aria-pressed': String(p.icon === n),
+          onclick: () => { p.icon = n; refresh(); changed({ now: true }); } }, icon(n, 20)));
+      });
+      host.appendChild(el('details', { class: 'icon-pick' }, [
+        el('summary', null, [el('span', { class: 'cur-ico' }, icon(p.icon || 'file-text', 20)), el('span', { text: 'Pictogramme de la page' }), icon('chevron-down', 12, 'chev')]),
+        grid
+      ]));
+      const full = !p.tab && barCount() >= MAX_BAR;
+      host.appendChild(el('div', { class: 'checks' }, [
+        el('label', { class: 'check' }, [el('input', { type: 'checkbox', checked: home || p.tab, disabled: home || full, onchange: (e) => { p.tab = e.target.checked; if (p.tab) p.menu = true; refresh(); changed({ now: true }); } }),
+          el('span', { text: home ? 'Page d’accueil : toujours dans la barre du bas' : 'Afficher dans la barre du bas (' + barCount() + ' sur ' + MAX_BAR + ')' })]),
+        el('label', { class: 'check' }, [el('input', { type: 'checkbox', checked: home || p.tab || p.menu !== false, disabled: home || p.tab, onchange: (e) => { p.menu = e.target.checked; refresh(); changed({ now: true }); } }),
+          el('span', { text: 'Afficher dans le menu (hamburger)' })])
+      ]));
+      if (full) host.appendChild(el('p', { class: 'help', text: 'La barre du bas est limitée à ' + MAX_BAR + ' pages. Décochez-en une autre pour choisir celle-ci : elle reste accessible par le menu.' }));
+      if (!home && !p.tab && p.menu === false) host.appendChild(el('p', { class: 'help', text: 'Page cachée : les visiteurs l’atteignent par un bouton, une carte ou un lien. Pratique pour un parcours ou une énigme.' }));
+    }
+    host.appendChild(el('label', { class: 'check' }, [el('input', { type: 'checkbox', checked: p.showTitle !== false, onchange: (e) => { p.showTitle = e.target.checked; changed({ now: true }); } }),
+      el('span', { text: 'Afficher le nom de la page en titre' })]));
+    if (!home) {
+      const tops = app.pages.filter((x) => !x.parent && x !== p);
+      host.appendChild(el('div', { class: 'field' }, [
+        el('label', { for: 'pg-parent', text: 'Place dans l’arborescence' }),
+        el('select', { id: 'pg-parent', disabled: hasKids, onchange: (e) => setParent(p, e.target.value) },
+          [el('option', { value: '', text: 'Page principale', selected: !p.parent })].concat(tops.map((t) => el('option', { value: t.id, text: 'Sous-page de « ' + t.title + ' »', selected: p.parent === t.id })))),
+        hasKids ? el('p', { class: 'help', text: 'Cette page contient des sous-pages : elle ne peut pas devenir elle-même une sous-page (un seul niveau).' }) : null
+      ]));
+    }
     host.appendChild(el('div', { class: 'row actions' }, [
-      btn('Dupliquer la page', null, { class: 'btn small', onclick: () => duplicatePage(p) }),
-      idx === 0 ? null : btn('Supprimer la page', 'trash', { class: 'btn small danger', onclick: () => deletePage(p) })
+      home ? null : btn('Monter', 'arrow-up', { class: 'btn small', onclick: () => moveSibling(p, -1) }),
+      home ? null : btn('Descendre', 'arrow-down', { class: 'btn small', onclick: () => moveSibling(p, 1) }),
+      sub ? null : btn('Ajouter une sous-page', 'plus', { class: 'btn small', onclick: () => { const sp = addSubPage(p); if (sp) { selectPage(sp.id); const t = $('#pg-title'); if (t) { t.focus(); t.select(); } } } }),
+      btn('Dupliquer', null, { class: 'btn small', onclick: () => duplicatePage(p) }),
+      home ? null : btn('Supprimer', 'trash', { class: 'btn small danger', onclick: () => deletePage(p) })
     ]));
   }
 
   function addPage() {
     const title = 'Nouvelle page';
-    const p = { id: newId(app.pages.map((x) => x.id), title), title, icon: 'file-text', tab: true, showTitle: true, blocks: [] };
-    app.pages.push(p); selectPage(p.id); changed({ now: true });
+    const p = { id: newId(app.pages.map((x) => x.id), title), title, icon: 'file-text', tab: barCount() < MAX_BAR, menu: true, parent: '', showTitle: true, blocks: [] };
+    app.pages.push(p); relayout(); selectPage(p.id); changed({ now: true });
     const t = $('#pg-title'); if (t) { t.focus(); t.select(); }
   }
   function duplicatePage(p) {
-    const c = clone(p); c.id = newId(app.pages.map((x) => x.id), p.title + ' copie'); c.title = p.title + ' (copie)';
-    c.blocks.forEach((b) => { b.id = uid(); });
-    app.pages.splice(app.pages.indexOf(p) + 1, 0, c); selectPage(c.id); changed({ now: true });
+    const group = [p].concat(p.parent ? [] : kidsOf(p.id)), map = {}, taken = app.pages.map((x) => x.id);
+    group.forEach((g) => { const id = newId(taken, g.title + ' copie'); taken.push(id); map[g.id] = id; });
+    const copies = group.map((g) => {
+      const c = clone(g); c.id = map[g.id]; c.title = g.title + (g === p ? ' (copie)' : '');
+      if (g === p) { c.tab = false; c.parent = p.parent; c.menu = p.parent ? false : true; } else c.parent = map[p.id];
+      c.blocks.forEach((b) => { b.id = uid(); if (map[b.page]) b.page = map[b.page]; (b.items || []).forEach((it) => { if (map[it.page]) it.page = map[it.page]; }); });
+      return c;
+    });
+    app.pages.push(...copies); relayout(); selectPage(copies[0].id); changed({ now: true });
   }
   function deletePage(p) {
-    if (!confirm('Supprimer la page « ' + p.title + ' » et tous ses blocs ?')) return;
-    app.pages.splice(app.pages.indexOf(p), 1);
+    const kids = kidsOf(p.id);
+    if (!confirm('Supprimer la page « ' + p.title + ' »' + (kids.length ? ', ses ' + kids.length + ' sous-page' + (kids.length > 1 ? 's' : '') : '') + ' et tous leurs blocs ?')) return;
+    const gone = [p.id].concat(kids.map((k) => k.id));
+    app.pages = app.pages.filter((x) => !gone.includes(x.id));
     let n = 0;
     app.pages.forEach((pg) => pg.blocks.forEach((b) => {
-      if (b.page === p.id) { b.page = ''; n++; }
-      (b.items || []).forEach((it) => { if (it.page === p.id) { it.page = ''; n++; } });
+      if (gone.includes(b.page)) { b.page = ''; n++; }
+      (b.items || []).forEach((it) => { if (gone.includes(it.page)) { it.page = ''; n++; } });
     }));
     selectPage(app.pages[0].id); changed({ now: true });
     toast('Page supprimée.' + (n ? ' ' + n + ' lien(s) vers cette page ont été retirés.' : ''));
@@ -985,6 +1159,7 @@
       if (b.type === 'button' && b.kind === 'url' && !H.safeUrl(b.url)) out.push(w + 'adresse manquante ou invalide.');
       if (b.type === 'embed' && !H.embedInfo(b.url)) out.push(w + 'adresse du formulaire manquante.');
       if (b.type === 'video' && !H.videoInfo(b.url)) out.push(w + 'vidéo non reconnue.');
+      if (b.type === 'h5p' && !H.h5pInfo(b.url)) out.push(w + 'adresse de l’activité manquante.');
       if (b.type === 'map' && !H.mapInfo(b.where)) out.push(w + 'position non reconnue.');
       if (b.type === 'image' && !b.src) out.push(w + 'aucune image choisie.');
       if (b.type === 'image' && b.src && !b.alt.trim()) out.push(w + 'pensez à décrire l’image (accessibilité).');
@@ -1057,7 +1232,7 @@
   });
   document.addEventListener('keydown', (e) => {
     const tag = (e.target.tagName || '').toLowerCase();
-    if ((e.ctrlKey || e.metaKey) && !['input', 'textarea', 'select'].includes(tag)) {
+    if ((e.ctrlKey || e.metaKey) && !['input', 'textarea', 'select'].includes(tag) && !e.target.isContentEditable) {
       if (e.key === 'z' && !e.shiftKey) { e.preventDefault(); snapshot(); restore(hi - 1); }
       else if (e.key === 'y' || (e.key === 'z' && e.shiftKey)) { e.preventDefault(); restore(hi + 1); }
     }

@@ -1,0 +1,202 @@
+// Test des fonctions ajoutées : barre du bas (4 max) + menu, sous-pages, éditeur de texte visuel, bloc H5P.
+// node tests/features.mjs
+import { createRequire } from 'node:module';
+import http from 'node:http';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+const require = createRequire(import.meta.url);
+const { chromium } = require('playwright');
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const out = process.env.OUT || path.join(root, 'tests', 'out');
+fs.mkdirSync(out, { recursive: true });
+const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.woff2': 'font/woff2', '.png': 'image/png' };
+const server = http.createServer((q, r) => {
+  const f = path.join(root, q.url === '/' ? 'index.html' : q.url.split('?')[0]);
+  if (!f.startsWith(root) || !fs.existsSync(f)) { r.writeHead(404); return r.end(); }
+  r.writeHead(200, { 'content-type': types[path.extname(f)] || 'application/octet-stream' }); r.end(fs.readFileSync(f));
+}).listen(0);
+const port = server.address().port;
+let fails = 0;
+const ok = (c, m) => { console.log((c ? '  ✔ ' : '  ✘ ') + m); if (!c) fails++; };
+
+const browser = await chromium.launch();
+const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, acceptDownloads: true });
+const page = await ctx.newPage();
+const errors = [];
+page.on('pageerror', (e) => { if (!/https:\/\//.test(e.stack || '')) errors.push(e.message); });
+await page.goto(`http://localhost:${port}/`);
+await page.waitForSelector('#dlg-home[open]');
+await page.click('.tpl:has-text("Livret d’accueil")');
+await page.waitForSelector('.blk');
+const fr = page.frameLocator('#preview');
+const app = () => page.evaluate(() => JSON.parse(JSON.stringify(window.__atelier.app)));
+
+console.log('1. Barre du bas : 4 pages au plus + menu');
+await fr.locator('.ma-tabs').waitFor();
+ok(await fr.locator('.ma-tab').count() === 5 && await fr.locator('.ma-tab-menu').count() === 1, 'aperçu : 4 pages + bouton Menu');
+await page.click('.page-btn:has-text("Ressources")');
+const barBox = page.locator('#page-settings label.check', { hasText: 'barre du bas' }).locator('input');
+ok(await barBox.isDisabled() && !(await barBox.isChecked()), 'la barre est pleine (4 sur 4) : « Ressources » ne peut pas s’y ajouter');
+ok((await page.locator('#page-settings').textContent()).includes('limitée à 4 pages'), 'message d’explication affiché');
+await page.click('.page-btn:has-text("Agenda")');
+await page.locator('#page-settings label.check', { hasText: 'barre du bas' }).locator('input').uncheck();
+await page.click('.page-btn:has-text("Ressources")');
+ok(await page.locator('#page-settings label.check', { hasText: 'barre du bas' }).locator('input').isEnabled(), 'décocher une page libère une place');
+await page.locator('#page-settings label.check', { hasText: 'barre du bas' }).locator('input').check();
+await page.waitForTimeout(300);
+const tabs = await fr.locator('.ma-tab:not(.ma-tab-menu)').allTextContents();
+ok(tabs.length === 4 && tabs.join('|').includes('Ressources') && !tabs.join('|').includes('Agenda'), 'la barre reflète le choix : ' + tabs.join(', '));
+await fr.locator('.ma-tab-menu').click();
+await fr.locator('.ma-menu').waitFor();
+const menuItems = await fr.locator('.ma-menu a').allTextContents();
+ok(menuItems.length === 5 && menuItems.join('|').includes('Agenda'), 'le menu montre toutes les pages principales : ' + menuItems.join(', '));
+ok(!menuItems.join('|').includes('Éducateur') && !menuItems.join('|').includes('Auxiliaire'), 'les sous-pages ne sont pas dans le menu');
+await page.screenshot({ path: path.join(out, 'f1-menu.png') });
+await fr.locator('.ma-menu a', { hasText: 'Agenda' }).click();
+ok(await fr.locator('.ma-menu').count() === 0 && (await fr.locator('h1').textContent()) === 'Agenda', 'choisir une page ferme le menu et l’ouvre');
+await fr.locator('.ma-tab-menu').click(); await fr.locator('.ma-menu').waitFor();
+await page.keyboard.press('Escape'); await page.waitForTimeout(150);
+const preview = await page.evaluate(() => 0);
+await fr.locator('.ma-tab-menu').click({ force: true }).catch(() => {});
+await fr.locator('.ma-menu-scrim').click({ position: { x: 10, y: 10 } }).catch(() => {});
+await page.waitForTimeout(200);
+ok(await fr.locator('.ma-menu').count() === 0, 'le menu se ferme (clic en dehors)');
+
+console.log('2. Sous-pages (un seul niveau)');
+await page.click('.page-btn:has-text("Formations")');
+ok(await page.locator('#page-settings select#pg-parent').isDisabled(), '« Formations » contient des sous-pages : elle ne peut pas devenir sous-page');
+await page.click('.page-row.sub .page-btn >> nth=0');
+ok((await page.locator('#page-settings').textContent()).includes('Sous-page de « Formations »'), 'une sous-page indique sa page principale');
+ok(await page.locator('.page-row.sub .mini').count() === 0, 'pas de bouton « ajouter une sous-page » sur une sous-page');
+ok(await page.locator('#page-settings label.check', { hasText: 'barre du bas' }).count() === 0, 'une sous-page n’a ni barre du bas ni menu');
+ok(await page.locator('#page-settings button:has-text("Ajouter une sous-page")').count() === 0, 'pas de sous-sous-pages');
+await page.click('.page-btn:has-text("Formations") >> nth=0');
+// carte -> sous-page en un clic
+await page.click('.blk:has-text("Cartes") .blk-toggle');
+await page.click('.blk.open button:has-text("Ajouter une carte")');
+await page.fill('.blk.open details.item[open] input[type=text] >> nth=0', 'Assistant familial');
+await page.click('.blk.open details.item[open] button:has-text("Créer une sous-page pour cette carte")');
+await page.waitForTimeout(300);
+const a2 = await app();
+const created = a2.pages.find((p) => p.title === 'Assistant familial');
+ok(created && created.parent === 'formations' && created.menu === false && created.tab === false, 'la sous-page est créée sous « Formations », hors menu et hors barre');
+const card = a2.pages.find((p) => p.id === 'formations').blocks.find((b) => b.type === 'cards').items.find((i) => i.title === 'Assistant familial');
+ok(card && card.page === created.id, 'la carte est reliée à sa sous-page');
+ok(await page.locator('.page-row.sub').count() === 3, 'la liste des pages montre 3 sous-pages indentées');
+// export + navigation
+const html = await page.evaluate(async () => { const a = window.__atelier; return a.buildHTML(a.normalizeApp(a.app)); });
+fs.writeFileSync(path.join(out, 'sub.html'), html);
+const p2 = await ctx.newPage(); await p2.setViewportSize({ width: 390, height: 800 });
+await p2.goto('file://' + path.join(out, 'sub.html'));
+await p2.locator('.ma-tab', { hasText: 'Formations' }).click();
+await p2.locator('.ma-cards-grille').waitFor();
+await p2.locator('.ma-card a', { hasText: 'Éducateur de jeunes enfants' }).click();
+await p2.waitForURL(/#\/formation-eje$/);
+await p2.locator('h1', { hasText: 'Éducateur' }).waitFor();
+ok((await p2.locator('h1').textContent()) === 'Éducateur de jeunes enfants', 'la carte ouvre la sous-page');
+ok((await p2.locator('.ma-back').textContent()).includes('Retour : Formations'), 'bouton « Retour : Formations »');
+ok(await p2.locator('.ma-tab[aria-current=page]').textContent().then((t) => t.includes('Formations')), 'l’onglet de la page principale reste actif');
+await p2.screenshot({ path: path.join(out, 'f2-souspage.png') });
+await p2.locator('.ma-back').click();
+ok(p2.url().endsWith('#/formations'), 'le retour revient à la page principale');
+await p2.close();
+
+console.log('3. Éditeur de texte visuel');
+await page.click('.page-btn:has-text("Accueil")');
+await page.click('#btn-add-block'); await page.click('.add-card:has-text("Texte")');
+const area = page.locator('.blk.open .rte-area');
+await area.click();
+await page.keyboard.type('Bonjour les étudiant');
+await page.click('.blk.open .rb[aria-label^="Point médian"]');
+await page.keyboard.type('e');
+await page.click('.blk.open .rb[aria-label^="Point médian"]');
+await page.keyboard.type('s');
+ok((await area.textContent()).includes('étudiant·e·s'), 'le point médian s’insère (étudiant·e·s)');
+ok(!/\*\*|\[|\]\(/.test(await area.textContent()), 'la zone affiche le texte, pas du code');
+await page.keyboard.press('Control+a');
+await page.click('.blk.open .rb[aria-label^="Gras"]');
+await page.click('.blk.open .rb[aria-label="Couleur du texte"]'); await page.click('.rte-pop .sw[aria-label="Rouge"]');
+await page.click('.blk.open .rb[aria-label="Taille du texte"]'); await page.click('.rte-pop .sw[aria-label="Grand"]');
+await page.click('.blk.open .rb[aria-label="Centrer"]');
+await page.click('.blk.open .rb[aria-label^="Surligner"]'); await page.click('.rte-pop .sw[aria-label="Jaune"]');
+await page.waitForTimeout(300);
+let d = (await app()).pages[0].blocks.find((b) => b.type === 'text' && b.text.b.length).text;
+const r0 = d.b[0].r[0];
+ok(d.b[0].al === 'center' && r0.b === 1 && r0.c === 'rouge' && r0.s === 'l' && r0.h === 'jaune', 'gras + rouge + grand + centré + stabilo jaune : ' + JSON.stringify(r0));
+await page.keyboard.press('Control+a');
+await page.click('.blk.open .rb[aria-label^="Souligner d’un trait"]'); await page.click('.rte-pop .sw[aria-label="Cyan"]');
+await page.waitForTimeout(300);
+d = (await app()).pages[0].blocks.find((b) => b.type === 'text' && b.text.b.length).text;
+ok(d.b[0].r[0].u === 1 && d.b[0].r[0].uc === 'cyan', 'trait de couleur sous le texte (cyan)');
+// aperçu : mêmes mises en forme
+const sp = fr.locator('.ma-b-text span.ma-c-rouge').first();
+await sp.waitFor();
+const cls = await sp.getAttribute('class');
+ok(/ma-s-l/.test(cls) && /ma-h-jaune/.test(cls) && /ma-t-cyan/.test(cls) && /ma-u/.test(cls), 'l’aperçu applique les mises en forme : ' + cls);
+ok(await fr.locator('.ma-b-text p.ma-al-center').count() === 1, 'alignement centré dans l’aperçu');
+await page.screenshot({ path: path.join(out, 'f3-editeur.png') });
+// liste + lien
+await area.click(); await page.keyboard.press('Control+End'); await page.keyboard.press('Enter');
+await page.click('.blk.open .rb[aria-label="Liste à puces"]');
+await page.keyboard.type('Premier point'); await page.keyboard.press('Enter'); await page.keyboard.type('Second point');
+await page.waitForTimeout(250);
+d = (await app()).pages[0].blocks.find((b) => b.type === 'text' && b.text.b.length).text;
+ok(d.b.some((b) => b.k === 'ul' && b.i.length === 2), 'liste à puces de 2 éléments');
+await page.keyboard.press('Shift+Home');
+await page.click('.blk.open .rb[aria-label^="Insérer un lien"]');
+await page.fill('.rte-pop .rp-in', 'www.crfpe.fr');
+await page.click('.rte-pop button:has-text("Appliquer")');
+await page.waitForTimeout(250);
+d = (await app()).pages[0].blocks.find((b) => b.type === 'text' && b.text.b.length).text;
+const link = JSON.stringify(d).match(/"a":"([^"]+)"/);
+ok(link && link[1] === 'https://www.crfpe.fr', 'lien créé et complété en https://');
+// collage : texte seul
+await page.evaluate(() => { const a = document.querySelector('.blk.open .rte-area'); a.focus(); });
+const pasted = await page.evaluate(() => {
+  const a = document.querySelector('.blk.open .rte-area'); const dt = new DataTransfer();
+  dt.setData('text/plain', 'ligne A\nligne B'); dt.setData('text/html', '<b style="color:red">gras rouge</b>');
+  a.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
+  return a.innerHTML;
+});
+ok(pasted.includes('ligne A') && !pasted.includes('gras rouge'), 'le collage ne garde que le texte');
+// Ctrl+Z dans la zone de texte annule la frappe (pas l'ensemble de l'appli)
+await area.click(); await page.keyboard.press('Control+End'); await page.keyboard.type(' ZZZ');
+await page.keyboard.press('Control+z'); await page.waitForTimeout(200);
+ok(!(await area.textContent()).includes('ZZZ') && await page.locator('.blk.open .rte-area').count() === 1, 'Ctrl+Z dans le texte annule seulement la frappe');
+// anciens projets : le Markdown devient un vrai texte mis en forme
+const md = await page.evaluate(() => { const a = window.__atelier; const n = a.normalizeApp({ title: 'x', pages: [{ id: 'a', title: 'A', blocks: [{ type: 'text', text: 'Un **mot** en gras\n\n- a\n- b' }] }] }); return n.pages[0].blocks[0].text; });
+ok(md.b[0].r.some((r) => r.b === 1 && r.t === 'mot') && md.b[1].k === 'ul', 'les anciens textes (Markdown) sont convertis');
+
+console.log('4. Bloc H5P');
+await page.click('.page-btn:has-text("Ressources")');
+await page.click('#btn-add-block'); await page.click('.add-card:has-text("Activité H5P")');
+await page.fill('.blk.open textarea >> nth=0', 'https://h5p.org/node/123456');
+await page.waitForTimeout(300);
+ok((await page.locator('.blk.open .status.ok').textContent()).includes('h5p.org'), 'adresse H5P reconnue');
+const h5pSrc = await fr.locator('.ma-b-h5p iframe').getAttribute('src');
+ok(h5pSrc === 'https://h5p.org/h5p/embed/123456', 'adresse convertie en adresse d’intégration : ' + h5pSrc);
+await page.fill('.blk.open textarea >> nth=0', '<iframe src="https://h5p.org/h5p/embed/987" width="1090" height="670"></iframe><script src="https://h5p.org/sites/all/modules/h5p/library/js/h5p-resizer.js" charset="UTF-8"></script>');
+await page.waitForTimeout(300);
+ok((await fr.locator('.ma-b-h5p iframe').getAttribute('src')) === 'https://h5p.org/h5p/embed/987', 'le code « Embed » complet est accepté');
+const h = await page.evaluate(async () => { const a = window.__atelier; return a.buildHTML(a.normalizeApp(a.app)); });
+ok(/frame-src[^;]*https:\/\/h5p\.org/.test(h), 'CSP : seul h5p.org est autorisé en cadre');
+fs.writeFileSync(path.join(out, 'h5p.html'), h);
+const p3 = await ctx.newPage(); await p3.setViewportSize({ width: 390, height: 800 });
+await p3.goto('file://' + path.join(out, 'h5p.html'));
+await p3.locator('.ma-tab-menu').click(); await p3.locator('.ma-menu a', { hasText: 'Ressources' }).click();
+await p3.locator('iframe[data-h5p]').waitFor();
+const hh = await p3.evaluate(() => {
+  const f = document.querySelector('iframe[data-h5p]');
+  window.dispatchEvent(new MessageEvent('message', { data: { context: 'h5p', action: 'resize', scrollHeight: 777 }, source: f.contentWindow }));
+  return f.style.height;
+});
+ok(hh === '777px', 'l’activité redimensionne le cadre (protocole H5P) : ' + hh);
+ok(await p3.locator('script[src]').count() === 0, 'aucun script externe chargé');
+await p3.close();
+
+const relevant = errors.filter((e) => !/Failed to load resource|ERR_/.test(e));
+ok(relevant.length === 0, 'aucune erreur JavaScript' + (relevant.length ? ' : ' + relevant.join(' | ') : ''));
+await browser.close(); server.close();
+console.log(fails ? `\n${fails} échec(s)` : '\nTout est OK');
+process.exit(fails ? 1 : 0);
